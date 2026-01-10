@@ -19,20 +19,20 @@ export const CartProvider = ({ children }) => {
   useEffect(() => {
     // Cart ko save karein
     localStorage.setItem('foodexpress_cart', JSON.stringify(cartItems));
-    
+
     // Check if user is logged in
     const checkAuthStatus = () => {
-      const user = localStorage.getItem('foodexpress_current_user') || 
-                   localStorage.getItem('currentUser') ||
-                   localStorage.getItem('mockUser');
+      const user = localStorage.getItem('foodexpress_current_user') ||
+        localStorage.getItem('currentUser') ||
+        localStorage.getItem('mockUser');
       setIsGuest(!user);
     };
-    
+
     checkAuthStatus();
-    
+
     // Listen for auth changes
     window.addEventListener('storage', checkAuthStatus);
-    
+
     return () => {
       window.removeEventListener('storage', checkAuthStatus);
     };
@@ -40,10 +40,10 @@ export const CartProvider = ({ children }) => {
 
   const addToCart = (item) => {
     console.log("🛒 Adding to cart:", item.name);
-    
+
     setCartItems(prevItems => {
       const existingItem = prevItems.find(i => i.id === item.id);
-      
+
       if (existingItem) {
         const newItems = prevItems.map(i =>
           i.id === item.id ? { ...i, quantity: i.quantity + 1 } : i
@@ -56,13 +56,13 @@ export const CartProvider = ({ children }) => {
         return newItems;
       }
     });
-    
-    // Show notification
-    if (window.showCartNotification) {
-      window.showCartNotification(`${item.name} added to cart!`);
-    } else {
-      console.log("📢 Notification:", `${item.name} added to cart!`);
-    }
+
+    // Show notification via Custom Event
+    const event = new CustomEvent('show-cart-notification', {
+      detail: { message: `${item.name} added to cart!` }
+    });
+    window.dispatchEvent(event);
+    console.log("📢 Event dispatched:", event.detail.message);
   };
 
   const removeFromCart = (id) => {
@@ -72,12 +72,12 @@ export const CartProvider = ({ children }) => {
 
   const updateQuantity = (id, quantity) => {
     console.log("🔄 Updating quantity:", id, "to", quantity);
-    
+
     if (quantity < 1) {
       removeFromCart(id);
       return;
     }
-    
+
     setCartItems(prevItems =>
       prevItems.map(item =>
         item.id === id ? { ...item, quantity } : item

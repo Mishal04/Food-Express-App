@@ -12,6 +12,7 @@ import CartPage from './pages/CartPage';
 import CheckoutPage from './pages/CheckoutPage';
 import Login from './components/Auth/Login';
 import AdminPage from './pages/AdminPage';
+import CartNotification from './components/CartNotification/CartNotification';
 
 import Signup from './components/Auth/Signup';
 import { CartProvider } from './context/CartContext';
@@ -26,27 +27,32 @@ function App() {
   const showNotification = (message) => {
     setNotificationMessage(message);
     setShowCartNotification(true);
-    
-    setTimeout(() => {
-      setShowCartNotification(false);
-    }, 3000);
   };
 
-  // Make showNotification available globally for CartContext
+  // Listen for cart notification events
   useEffect(() => {
-    window.showCartNotification = showNotification;
+    const handleCartNotification = (e) => {
+      console.log("🔔 Notification event received:", e.detail.message);
+      showNotification(e.detail.message);
+    };
+
+    window.addEventListener('show-cart-notification', handleCartNotification);
+
+    return () => {
+      window.removeEventListener('show-cart-notification', handleCartNotification);
+    };
   }, []);
 
   useEffect(() => {
     console.log("App: Setting up auth listener...");
-    
+
     // First check localStorage for user
     const checkUser = () => {
       try {
-        const savedUser = localStorage.getItem('foodexpress_current_user') || 
-                         localStorage.getItem('currentUser') || 
-                         localStorage.getItem('mockUser');
-        
+        const savedUser = localStorage.getItem('foodexpress_current_user') ||
+          localStorage.getItem('currentUser') ||
+          localStorage.getItem('mockUser');
+
         if (savedUser) {
           const parsedUser = JSON.parse(savedUser);
           setUser(parsedUser);
@@ -58,28 +64,28 @@ function App() {
         console.error("App: Error parsing saved user:", error);
         setUser(null);
       }
-      
+
       setLoading(false);
     };
-    
+
     checkUser();
-    
+
     // Listen for storage changes (for mock auth)
     const handleStorageChange = (e) => {
-      if (e.key === 'foodexpress_current_user' || 
-          e.key === 'currentUser' || 
-          e.key === 'mockUser') {
+      if (e.key === 'foodexpress_current_user' ||
+        e.key === 'currentUser' ||
+        e.key === 'mockUser') {
         checkUser();
       }
     };
-    
+
     window.addEventListener('storage', handleStorageChange);
-    
+
     // Set a global function for mock auth to update state
     window.updateAuthState = (newUser) => {
       setUser(newUser);
     };
-    
+
     // Set timeout to ensure loading finishes
     const timeoutId = setTimeout(() => {
       if (loading) {
@@ -87,7 +93,7 @@ function App() {
         setLoading(false);
       }
     }, 2000);
-    
+
     // Cleanup
     return () => {
       window.removeEventListener('storage', handleStorageChange);
@@ -114,39 +120,38 @@ function App() {
       <Router>
         <div className="d-flex flex-column min-vh-100">
           <NavigationBar user={user} />
-          
+
           {/* Cart Notification */}
-          {showCartNotification && (
-            <div className="cart-notification">
-              <i className="fas fa-check-circle me-2"></i>
-              {notificationMessage}
-            </div>
-          )}
-          
+          <CartNotification
+            show={showCartNotification}
+            message={notificationMessage}
+            onClose={() => setShowCartNotification(false)}
+          />
+
           <main className="flex-grow-1">
             <Routes>
               <Route path="/" element={<HomePage />} />
               <Route path="/menu" element={<MenuPage />} />
               <Route path="/cart" element={<CartPage />} />
-              <Route 
-                path="/checkout" 
-                element={user ? <CheckoutPage /> : <Navigate to="/login" />} 
+              <Route
+                path="/checkout"
+                element={user ? <CheckoutPage /> : <Navigate to="/login" />}
               />
-              <Route 
-                path="/login" 
-                element={!user ? <Login /> : <Navigate to="/" />} 
+              <Route
+                path="/login"
+                element={!user ? <Login /> : <Navigate to="/" />}
               />
-              <Route 
-                path="/signup" 
-                element={!user ? <Signup /> : <Navigate to="/" />} 
+              <Route
+                path="/signup"
+                element={!user ? <Signup /> : <Navigate to="/" />}
               />
-              <Route 
-               path="/admin" 
-              element={<AdminPage />} 
+              <Route
+                path="/admin"
+                element={<AdminPage />}
               />
             </Routes>
           </main>
-          
+
           <Footer />
         </div>
       </Router>

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Container, Row, Col, Form, Button, Card, Alert } from 'react-bootstrap';
 import { useCart } from '../context/CartContext';
 import { useNavigate } from 'react-router-dom';
+import OrderSummary from '../components/OrderSummary/OrderSummary';
 
 const CheckoutPage = () => {
   const { cartItems, cartTotal, clearCart } = useCart();
@@ -23,7 +24,7 @@ const CheckoutPage = () => {
     try {
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 1500));
-      
+
       // Create order object
       const order = {
         id: Math.random().toString(36).substr(2, 9).toUpperCase(),
@@ -32,17 +33,17 @@ const CheckoutPage = () => {
         customerInfo: formData,
         date: new Date().toLocaleString()
       };
-      
+
       // Save to localStorage (for demo)
       const existingOrders = JSON.parse(localStorage.getItem('orders') || '[]');
       localStorage.setItem('orders', JSON.stringify([...existingOrders, order]));
-      
+
       // Clear cart
       clearCart();
-      
+
       // Show success message
       alert(`Order placed successfully! Order ID: ${order.id}`);
-      
+
       // Redirect to home
       navigate('/');
     } catch (err) {
@@ -79,7 +80,7 @@ const CheckoutPage = () => {
   return (
     <Container className="py-5">
       <h1 className="text-center mb-5">Checkout</h1>
-      
+
       <Row>
         <Col lg={8}>
           <Card className="mb-4 shadow">
@@ -108,7 +109,7 @@ const CheckoutPage = () => {
                     />
                   </Col>
                 </Row>
-                
+
                 <Form.Group className="mb-4">
                   <Form.Label>Delivery Address *</Form.Label>
                   <Form.Control
@@ -120,7 +121,7 @@ const CheckoutPage = () => {
                     required
                   />
                 </Form.Group>
-                
+
                 <Form.Group className="mb-4">
                   <Form.Label>Order Notes (Optional)</Form.Label>
                   <Form.Control
@@ -132,9 +133,9 @@ const CheckoutPage = () => {
                     placeholder="Any special instructions?"
                   />
                 </Form.Group>
-                
+
                 {error && <Alert variant="danger">{error}</Alert>}
-                
+
                 <Button
                   type="submit"
                   variant="warning"
@@ -148,43 +149,15 @@ const CheckoutPage = () => {
             </Card.Body>
           </Card>
         </Col>
-        
+
         <Col lg={4}>
-          <Card className="shadow">
-            <Card.Body>
-              <h4>Order Summary</h4>
-              {cartItems.map(item => (
-                <div key={item.id} className="d-flex justify-content-between mb-2">
-                  <span>
-                    {item.name} x {item.quantity}
-                  </span>
-                  <span>${(item.price * item.quantity).toFixed(2)}</span>
-                </div>
-              ))}
-              
-              <hr />
-              <div className="d-flex justify-content-between">
-                <span>Subtotal</span>
-                <span>${cartTotal.toFixed(2)}</span>
-              </div>
-              <div className="d-flex justify-content-between">
-                <span>Delivery Fee</span>
-                <span>${deliveryFee.toFixed(2)}</span>
-              </div>
-              <hr />
-              <div className="d-flex justify-content-between fw-bold">
-                <span>Total</span>
-                <span className="text-warning">${totalWithDelivery.toFixed(2)}</span>
-              </div>
-              
-              <hr />
-              <div className="text-muted small">
-                <p>• Free delivery on orders over $30</p>
-                <p>• Estimated delivery time: 30-45 minutes</p>
-                <p>• Cash on delivery available</p>
-              </div>
-            </Card.Body>
-          </Card>
+          <OrderSummary
+            cartItems={cartItems}
+            cartTotal={cartTotal}
+            deliveryFee={deliveryFee}
+            totalWithDelivery={totalWithDelivery}
+            showCheckoutButton={false}
+          />
         </Col>
       </Row>
     </Container>

@@ -3,21 +3,22 @@ import { Container, Row, Col, Card, Button, Table, Alert } from 'react-bootstrap
 import { Link, useNavigate } from 'react-router-dom';
 import { FaTrash, FaPlus, FaMinus, FaShoppingCart, FaSignInAlt } from 'react-icons/fa';
 import { useCart } from '../context/CartContext';
+import OrderSummary from '../components/OrderSummary/OrderSummary';
 
 const CartPage = () => {
   const { cartItems, removeFromCart, updateQuantity, cartTotal, cartCount } = useCart();
   const navigate = useNavigate();
-  
+
   console.log("🛒 Cart Page Loaded");
   console.log("Cart Items:", cartItems);
   console.log("Cart Count:", cartCount);
   console.log("Cart Total:", cartTotal);
-  
+
   // Check if user is logged in
   const isLoggedIn = () => {
-    const user = localStorage.getItem('foodexpress_current_user') || 
-                 localStorage.getItem('currentUser') ||
-                 localStorage.getItem('mockUser');
+    const user = localStorage.getItem('foodexpress_current_user') ||
+      localStorage.getItem('currentUser') ||
+      localStorage.getItem('mockUser');
     return !!user;
   };
 
@@ -46,7 +47,7 @@ const CartPage = () => {
       const shouldLogin = window.confirm(
         "To checkout, you need to login or create an account.\n\nDo you want to login now?"
       );
-      
+
       if (shouldLogin) {
         navigate('/login');
       }
@@ -58,20 +59,20 @@ const CartPage = () => {
   return (
     <Container className="py-5">
       <h1 className="mb-4">Your Shopping Cart</h1>
-      
+
       {!isLoggedIn() && (
         <Alert variant="info" className="mb-4">
           <FaSignInAlt className="me-2" />
-          You are browsing as a guest. 
+          You are browsing as a guest.
           <Link to="/login" className="alert-link ms-1">
             Login
-          </Link> or 
+          </Link> or
           <Link to="/signup" className="alert-link ms-1">
             Sign up
           </Link> to save your cart and checkout.
         </Alert>
       )}
-      
+
       <Row>
         <Col lg={8}>
           <Card className="shadow-sm mb-4">
@@ -92,8 +93,8 @@ const CartPage = () => {
                       <tr key={item.id}>
                         <td>
                           <div className="d-flex align-items-center">
-                            <img 
-                              src={item.image} 
+                            <img
+                              src={item.image}
                               alt={item.name}
                               className="cart-item-image me-3"
                               onError={(e) => {
@@ -116,7 +117,7 @@ const CartPage = () => {
                         </td>
                         <td>
                           <div className="d-flex align-items-center">
-                            <button 
+                            <button
                               className="quantity-btn"
                               onClick={() => updateQuantity(item.id, item.quantity - 1)}
                               aria-label="Decrease quantity"
@@ -126,7 +127,7 @@ const CartPage = () => {
                             <span className="mx-3 fw-bold" style={{ minWidth: '30px', textAlign: 'center' }}>
                               {item.quantity}
                             </span>
-                            <button 
+                            <button
                               className="quantity-btn"
                               onClick={() => updateQuantity(item.id, item.quantity + 1)}
                               aria-label="Increase quantity"
@@ -139,8 +140,8 @@ const CartPage = () => {
                           ${(item.price * item.quantity).toFixed(2)}
                         </td>
                         <td>
-                          <Button 
-                            variant="outline-danger" 
+                          <Button
+                            variant="outline-danger"
                             size="sm"
                             onClick={() => removeFromCart(item.id)}
                             aria-label="Remove item"
@@ -156,14 +157,14 @@ const CartPage = () => {
               </div>
             </Card.Body>
           </Card>
-          
+
           <div className="d-flex justify-content-between mb-5">
             <Link to="/menu">
               <Button variant="outline-secondary">
                 ← Continue Shopping
               </Button>
             </Link>
-            <Button 
+            <Button
               variant="danger"
               onClick={() => {
                 if (window.confirm('Are you sure you want to clear all items from your cart?')) {
@@ -175,106 +176,17 @@ const CartPage = () => {
             </Button>
           </div>
         </Col>
-        
+
         <Col lg={4}>
-          <Card className="shadow-sm sticky-top" style={{ top: '20px' }}>
-            <Card.Body>
-              <h4 className="mb-4">Order Summary</h4>
-              
-              <div className="mb-4">
-                {/* Items summary */}
-                <div className="mb-3">
-                  <h6>Items ({cartCount})</h6>
-                  {cartItems.map(item => (
-                    <div key={item.id} className="d-flex justify-content-between mb-1">
-                      <span className="text-muted small">
-                        {item.name} × {item.quantity}
-                      </span>
-                      <span className="small">
-                        ${(item.price * item.quantity).toFixed(2)}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-                
-                <hr />
-                
-                {/* Subtotal */}
-                <div className="d-flex justify-content-between mb-2">
-                  <span>Subtotal</span>
-                  <span>${cartTotal.toFixed(2)}</span>
-                </div>
-                
-                {/* Delivery fee */}
-                <div className="d-flex justify-content-between mb-2">
-                  <span>Delivery Fee</span>
-                  <span className={deliveryFee === 0 ? 'text-success' : ''}>
-                    {deliveryFee === 0 ? 'FREE' : `$${deliveryFee.toFixed(2)}`}
-                  </span>
-                </div>
-                
-                <hr />
-                
-                {/* Total */}
-                <div className="d-flex justify-content-between fw-bold fs-5">
-                  <span>Total</span>
-                  <span className="text-warning">${totalWithDelivery.toFixed(2)}</span>
-                </div>
-              </div>
-              
-              {/* Free delivery message */}
-              {cartTotal > 30 ? (
-                <Alert variant="success" className="mb-3">
-                  🎉 Congratulations! You qualify for FREE delivery!
-                </Alert>
-              ) : (
-                <Alert variant="info" className="mb-3">
-                  <strong>Add ${(30 - cartTotal).toFixed(2)} more</strong> to get FREE delivery!
-                </Alert>
-              )}
-              
-              {/* Checkout button */}
-              <Button 
-                variant="warning" 
-                className="w-100 py-3 fw-bold mb-3"
-                onClick={handleCheckout}
-                size="lg"
-              >
-                {isLoggedIn() ? 'Proceed to Checkout' : 'Login to Checkout'}
-              </Button>
-              
-              {/* Create account button for guests */}
-              {!isLoggedIn() && (
-                <Link to="/signup" className="text-decoration-none">
-                  <Button variant="outline-warning" className="w-100 py-2 mb-3">
-                    Create Free Account
-                  </Button>
-                </Link>
-              )}
-              
-              {/* Security info */}
-              <div className="mt-4 pt-3 border-top">
-                <div className="d-flex align-items-center mb-2">
-                  <span className="text-success me-2">✓</span>
-                  <small className="text-muted">Secure checkout</small>
-                </div>
-                <div className="d-flex align-items-center mb-2">
-                  <span className="text-success me-2">✓</span>
-                  <small className="text-muted">Free delivery over $30</small>
-                </div>
-                <div className="d-flex align-items-center">
-                  <span className="text-success me-2">✓</span>
-                  <small className="text-muted">30-minute delivery guarantee</small>
-                </div>
-              </div>
-              
-              {/* Terms */}
-              <p className="text-muted small mt-3 mb-0">
-                By placing your order, you agree to our 
-                <Link to="/terms" className="text-warning ms-1">Terms & Conditions</Link>
-              </p>
-            </Card.Body>
-          </Card>
+          <OrderSummary
+            cartItems={cartItems}
+            cartTotal={cartTotal}
+            deliveryFee={deliveryFee}
+            totalWithDelivery={totalWithDelivery}
+            showCheckoutButton={true}
+            isLoggedIn={isLoggedIn()}
+            onCheckout={handleCheckout}
+          />
         </Col>
       </Row>
     </Container>
