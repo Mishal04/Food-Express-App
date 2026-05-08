@@ -12,7 +12,7 @@ const OrderSummary = ({
     isLoggedIn = false,
     onCheckout
 }) => {
-    const cartCount = cartItems.reduce((total, item) => total + item.quantity, 0);
+
 
     return (
         <Card className="summary-card-premium border-0 shadow-lg">

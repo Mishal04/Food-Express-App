@@ -8,7 +8,6 @@ import {
   FaLeaf, 
   FaIceCream, 
   FaCoffee,
-  FaShoppingCart,
   FaFire
 } from 'react-icons/fa';
 import { 

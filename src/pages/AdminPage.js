@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Container, Row, Col, Card, Button, Form, Table, Modal, Badge, Spinner } from 'react-bootstrap';
+import { Row, Col, Card, Button, Form, Table, Modal, Spinner } from 'react-bootstrap';
 import { 
-  FaPlus, FaCog, FaShoppingCart, FaUtensils, FaChartBar, 
+  FaPlus, FaShoppingCart, FaUtensils, FaChartBar, 
   FaUsers, FaDollarSign, FaBox, FaTrash, FaEdit, FaChevronRight, FaCloudUploadAlt 
 } from 'react-icons/fa';
 import { menuService, orderService } from '../services/firebaseService';
