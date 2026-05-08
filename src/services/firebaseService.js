@@ -148,6 +148,23 @@ export const orderService = {
       console.error("Error fetching user orders:", error);
       return [];
     }
+  },
+
+  // Get all orders (for Admin)
+  async getAllOrders() {
+    try {
+      const ordersRef = collection(db, 'orders');
+      const q = query(ordersRef, orderBy('createdAt', 'desc'));
+      const querySnapshot = await getDocs(q);
+      
+      return querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+    } catch (error) {
+      console.error("Error fetching all orders:", error);
+      return [];
+    }
   }
 };
 

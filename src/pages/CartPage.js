@@ -1,7 +1,7 @@
 import React from 'react';
 import { Container, Row, Col, Card, Button, Table, Alert } from 'react-bootstrap';
 import { Link, useNavigate } from 'react-router-dom';
-import { FaTrash, FaPlus, FaMinus, FaShoppingCart, FaSignInAlt } from 'react-icons/fa';
+import { FaTrash, FaPlus, FaMinus, FaShoppingCart, FaArrowLeft, FaShieldAlt } from 'react-icons/fa';
 import { useCart } from '../context/CartContext';
 import OrderSummary from '../components/OrderSummary/OrderSummary';
 
@@ -9,14 +9,10 @@ const CartPage = () => {
   const { cartItems, removeFromCart, updateQuantity, cartTotal, cartCount } = useCart();
   const navigate = useNavigate();
 
-  console.log("🛒 Cart Page Loaded");
-  console.log("Cart Items:", cartItems);
-  console.log("Cart Count:", cartCount);
-  console.log("Cart Total:", cartTotal);
-
   // Check if user is logged in
   const isLoggedIn = () => {
-    const user = localStorage.getItem('foodexpress_current_user') ||
+    const user = 
+      localStorage.getItem('foodexpress_current_user') ||
       localStorage.getItem('currentUser') ||
       localStorage.getItem('mockUser');
     return !!user;
@@ -24,17 +20,21 @@ const CartPage = () => {
 
   if (cartItems.length === 0) {
     return (
-      <Container className="py-5 text-center">
-        <Card className="shadow-sm border-0">
-          <Card.Body className="py-5">
-            <FaShoppingCart size={64} className="text-muted mb-3" />
-            <h3>Your cart is empty</h3>
-            <p className="text-muted mb-4">Add some delicious items from our menu</p>
-            <Link to="/menu">
-              <Button variant="warning" className="px-4">Browse Menu</Button>
-            </Link>
-          </Card.Body>
-        </Card>
+      <Container className="py-5 text-center animate-fade-in">
+        <div className="py-5 mt-5">
+          <div className="empty-cart-icon">
+            <FaShoppingCart size={100} />
+          </div>
+          <h2 className="fw-900 mb-3">Your cart is empty</h2>
+          <p className="text-muted mb-4 mx-auto" style={{ maxWidth: '400px' }}>
+            Looks like you haven't added anything to your cart yet. Let's find something delicious!
+          </p>
+          <Link to="/menu">
+            <Button variant="warning" size="lg" className="px-5 py-3 shadow-lg">
+              Start Ordering
+            </Button>
+          </Link>
+        </div>
       </Container>
     );
   }
@@ -44,152 +44,132 @@ const CartPage = () => {
 
   const handleCheckout = () => {
     if (!isLoggedIn()) {
-      const shouldLogin = window.confirm(
-        "To checkout, you need to login or create an account.\n\nDo you want to login now?"
-      );
-
-      if (shouldLogin) {
-        navigate('/login');
-      }
+      navigate('/login');
     } else {
       navigate('/checkout');
     }
   };
 
   return (
-    <Container className="py-5">
-      <h1 className="mb-4">Your Shopping Cart</h1>
+    <div className="cart-page py-5 bg-light-premium min-vh-100">
+      <Container>
+        <div className="d-flex align-items-center mb-4 animate-fade-in">
+          <Link to="/menu" className="text-decoration-none text-muted me-3 hover-accent">
+            <FaArrowLeft />
+          </Link>
+          <h1 className="fw-900 mb-0">My Basket</h1>
+          <span className="ms-3 badge bg-accent-light text-accent rounded-pill px-3 py-2">
+            {cartCount} {cartCount === 1 ? 'Item' : 'Items'}
+          </span>
+        </div>
 
-      {!isLoggedIn() && (
-        <Alert variant="info" className="mb-4">
-          <FaSignInAlt className="me-2" />
-          You are browsing as a guest.
-          <Link to="/login" className="alert-link ms-1">
-            Login
-          </Link> or
-          <Link to="/signup" className="alert-link ms-1">
-            Sign up
-          </Link> to save your cart and checkout.
-        </Alert>
-      )}
-
-      <Row>
-        <Col lg={8}>
-          <Card className="shadow-sm mb-4">
-            <Card.Body className="p-0">
-              <div className="table-responsive">
-                <Table className="mb-0">
-                  <thead className="table-light">
-                    <tr>
-                      <th style={{ width: '40%' }}>Item</th>
-                      <th style={{ width: '15%' }}>Price</th>
-                      <th style={{ width: '20%' }}>Quantity</th>
-                      <th style={{ width: '15%' }}>Total</th>
-                      <th style={{ width: '10%' }}>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {cartItems.map(item => (
-                      <tr key={item.id}>
-                        <td>
-                          <div className="d-flex align-items-center">
-                            <img
-                              src={item.image}
-                              alt={item.name}
-                              className="cart-item-image me-3"
-                              onError={(e) => {
-                                e.target.onerror = null;
-                                e.target.src = "https://via.placeholder.com/80x80?text=Food+Image";
-                              }}
-                            />
-                            <div>
-                              <h6 className="mb-1">{item.name}</h6>
-                              <p className="text-muted small mb-0">{item.description}</p>
-                              {item.isVegetarian && (
-                                <span className="badge bg-success mt-1">Vegetarian</span>
-                              )}
-                            </div>
-                          </div>
-                        </td>
-                        <td>
-                          <div className="fw-bold">${item.price.toFixed(2)}</div>
-                          <small className="text-muted">each</small>
-                        </td>
-                        <td>
-                          <div className="d-flex align-items-center">
-                            <button
-                              className="quantity-btn"
-                              onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                              aria-label="Decrease quantity"
-                            >
-                              <FaMinus size={12} />
-                            </button>
-                            <span className="mx-3 fw-bold" style={{ minWidth: '30px', textAlign: 'center' }}>
-                              {item.quantity}
-                            </span>
-                            <button
-                              className="quantity-btn"
-                              onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                              aria-label="Increase quantity"
-                            >
-                              <FaPlus size={12} />
-                            </button>
-                          </div>
-                        </td>
-                        <td className="fw-bold">
-                          ${(item.price * item.quantity).toFixed(2)}
-                        </td>
-                        <td>
-                          <Button
-                            variant="outline-danger"
-                            size="sm"
-                            onClick={() => removeFromCart(item.id)}
-                            aria-label="Remove item"
-                            title="Remove from cart"
-                          >
-                            <FaTrash />
-                          </Button>
-                        </td>
+        <Row className="gy-4">
+          <Col lg={8} className="animate-fade-in-delay">
+            <Card className="cart-card-premium">
+              <Card.Body className="p-0">
+                <div className="table-responsive">
+                  <Table className="cart-table mb-0">
+                    <thead>
+                      <tr>
+                        <th>Dishes</th>
+                        <th className="text-center">Quantity</th>
+                        <th className="text-end">Total</th>
+                        <th></th>
                       </tr>
-                    ))}
-                  </tbody>
-                </Table>
+                    </thead>
+                    <tbody>
+                      {cartItems.map((item) => (
+                        <tr key={item.id}>
+                          <td>
+                            <div className="d-flex align-items-center">
+                              <img
+                                src={item.image}
+                                alt={item.name}
+                                className="cart-item-image me-3"
+                                onError={(e) => {
+                                  e.target.onerror = null;
+                                  e.target.src = "https://via.placeholder.com/80x80?text=Food";
+                                }}
+                              />
+                              <div>
+                                <h6 className="fw-bold mb-1">{item.name}</h6>
+                                <p className="text-muted small mb-0 d-none d-md-block">
+                                  ${item.price.toFixed(2)} each
+                                </p>
+                              </div>
+                            </div>
+                          </td>
+                          <td>
+                            <div className="d-flex align-items-center justify-content-center">
+                              <button
+                                className="quantity-btn-premium"
+                                onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                                aria-label="Decrease quantity"
+                              >
+                                <FaMinus size={10} />
+                              </button>
+                              <span className="mx-3 fw-800" style={{ minWidth: '20px', textAlign: 'center' }}>
+                                {item.quantity}
+                              </span>
+                              <button
+                                className="quantity-btn-premium"
+                                onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                                aria-label="Increase quantity"
+                              >
+                                <FaPlus size={10} />
+                              </button>
+                            </div>
+                          </td>
+                          <td className="text-end fw-800">
+                            ${(item.price * item.quantity).toFixed(2)}
+                          </td>
+                          <td className="text-end">
+                            <button
+                              className="btn-icon-danger border-0 bg-transparent text-muted hover-danger p-2"
+                              onClick={() => removeFromCart(item.id)}
+                              aria-label="Remove item"
+                            >
+                              <FaTrash size={14} />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </Table>
+                </div>
+              </Card.Body>
+            </Card>
+
+            <div className="mt-4 d-flex align-items-center text-muted small">
+              <FaShieldAlt className="me-2 text-success" />
+              <span>Secure checkout powered by FoodExpress Payments</span>
+            </div>
+          </Col>
+
+          <Col lg={4} className="animate-fade-in-delay-2">
+            <div className="sticky-top" style={{ top: '100px' }}>
+              <OrderSummary
+                cartItems={cartItems}
+                cartTotal={cartTotal}
+                deliveryFee={deliveryFee}
+                totalWithDelivery={totalWithDelivery}
+                showCheckoutButton={true}
+                isLoggedIn={isLoggedIn()}
+                onCheckout={handleCheckout}
+              />
+              
+              <div className="mt-4 p-4 border rounded-4 bg-white shadow-sm dark-surface">
+                <h6 className="fw-bold mb-3">Promo Code</h6>
+                <div className="d-flex gap-2">
+                  <input type="text" className="form-control border-2 rounded-3" placeholder="Enter code" />
+                  <Button variant="dark" className="rounded-3 px-3">Apply</Button>
+                </div>
               </div>
-            </Card.Body>
-          </Card>
-
-          <div className="d-flex justify-content-between mb-5">
-            <Link to="/menu">
-              <Button variant="outline-secondary">
-                ← Continue Shopping
-              </Button>
-            </Link>
-            <Button
-              variant="danger"
-              onClick={() => {
-                if (window.confirm('Are you sure you want to clear all items from your cart?')) {
-                  cartItems.forEach(item => removeFromCart(item.id));
-                }
-              }}
-            >
-              Clear Entire Cart
-            </Button>
-          </div>
-        </Col>
-
-        <Col lg={4}>
-          <OrderSummary
-            cartItems={cartItems}
-            cartTotal={cartTotal}
-            deliveryFee={deliveryFee}
-            totalWithDelivery={totalWithDelivery}
-            showCheckoutButton={true}
-            isLoggedIn={isLoggedIn()}
-            onCheckout={handleCheckout}
-          />
-        </Col>
-      </Row>
-    </Container>
+            </div>
+          </Col>
+        </Row>
+      </Container>
+    </div>
   );
 };
 

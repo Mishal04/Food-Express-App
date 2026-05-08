@@ -1,173 +1,98 @@
 import React, { useState, useEffect } from 'react';
+import { Container, Row, Col, Card, Button, Form, Table, Modal, Badge, Spinner } from 'react-bootstrap';
 import { 
-  Container, 
-  Row, 
-  Col, 
-  Card, 
-  Button, 
-  Form, 
-  Table, 
-  Modal,
-  Alert,
-  Spinner,
-  Tabs,
-  Tab,
-  Badge
-} from 'react-bootstrap';
-import { 
-  FaEdit, 
-  FaTrash, 
-  FaPlus, 
-  FaCog, 
-  FaShoppingCart, 
-  FaUsers, 
-  FaChartBar,
-  FaSave,
-  FaTimes,
-  FaEye,
-  FaFilter,
-  FaUtensils  
+  FaPlus, FaCog, FaShoppingCart, FaUtensils, FaChartBar, 
+  FaUsers, FaDollarSign, FaBox, FaTrash, FaEdit, FaChevronRight, FaCloudUploadAlt 
 } from 'react-icons/fa';
 import { menuService, orderService } from '../services/firebaseService';
+import { storage } from '../firebase';
+import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 
 const AdminPage = () => {
-  // States
+  const [activeTab, setActiveTab] = useState('overview');
   const [menuItems, setMenuItems] = useState([]);
   const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState({ menu: true, orders: true });
+  const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
-  const [activeTab, setActiveTab] = useState('menu');
   const [stats, setStats] = useState({
-    totalItems: 0,
-    totalOrders: 0,
     totalRevenue: 0,
-    pendingOrders: 0
+    totalOrders: 0,
+    totalItems: 0,
+    activeCustomers: 0
   });
 
-  // Form data
   const [formData, setFormData] = useState({
     name: '',
     description: '',
     price: '',
     category: 'pizza',
     isVegetarian: 'false',
-    image: '',
-    popular: 'false'
+    popular: 'false',
+    image: ''
   });
 
-  // Categories
-  const categories = [
-    'pizza', 'burger', 'salad', 'pasta', 
-    'indian', 'asian', 'dessert', 'beverage'
-  ];
-
-  // Fetch data on component mount
   useEffect(() => {
-    fetchMenuItems();
-    fetchOrders();
+    fetchData();
   }, []);
 
-  // Fetch menu items
-  const fetchMenuItems = async () => {
+  const fetchData = async () => {
+    setLoading(true);
     try {
-      setLoading(prev => ({ ...prev, menu: true }));
-      const items = await menuService.getAllMenuItems();
+      const [items, allOrders] = await Promise.all([
+        menuService.getAllMenuItems(),
+        orderService.getAllOrders()
+      ]);
+      
       setMenuItems(items);
+      setOrders(allOrders);
       
-      // Update stats
-      setStats(prev => ({
-        ...prev,
-        totalItems: items.length
-      }));
-    } catch (error) {
-      console.error("Error fetching menu items:", error);
-      alert('Error loading menu items: ' + error.message);
-    } finally {
-      setLoading(prev => ({ ...prev, menu: false }));
-    }
-  };
-
-  // Fetch orders
-  const fetchOrders = async () => {
-    try {
-      setLoading(prev => ({ ...prev, orders: true }));
-      // For now, we'll use mock data. You can implement real order fetching later
-      const mockOrders = [
-        {
-          id: '1',
-          orderId: 'ORD-001',
-          customer: 'John Doe',
-          email: 'john@example.com',
-          items: ['Margherita Pizza', 'Coke'],
-          total: 15.98,
-          status: 'pending',
-          date: '2024-01-15'
-        },
-        {
-          id: '2',
-          orderId: 'ORD-002',
-          customer: 'Jane Smith',
-          email: 'jane@example.com',
-          items: ['Cheeseburger', 'Fries'],
-          total: 12.99,
-          status: 'delivered',
-          date: '2024-01-14'
-        }
-      ];
-      setOrders(mockOrders);
+      // Calculate real stats
+      const revenue = allOrders.reduce((sum, o) => sum + (o.total || 0), 0);
+      const uniqueCustomers = new Set(allOrders.map(o => o.userId)).size;
       
-      // Calculate stats
-      const pending = mockOrders.filter(o => o.status === 'pending').length;
-      const revenue = mockOrders.reduce((sum, order) => sum + order.total, 0);
-      
-      setStats(prev => ({
-        ...prev,
-        totalOrders: mockOrders.length,
+      setStats({
         totalRevenue: revenue,
-        pendingOrders: pending
-      }));
+        totalOrders: allOrders.length,
+        totalItems: items.length,
+        activeCustomers: uniqueCustomers
+      });
     } catch (error) {
-      console.error("Error fetching orders:", error);
+      console.error("Error fetching admin data:", error);
     } finally {
-      setLoading(prev => ({ ...prev, orders: false }));
+      setLoading(false);
     }
   };
 
-  // Handle form submission
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    
-    const itemData = {
-      name: formData.name,
-      description: formData.description,
-      price: parseFloat(formData.price),
-      category: formData.category,
-      isVegetarian: formData.isVegetarian === 'true',
-      popular: formData.popular === 'true',
-      image: formData.image
-    };
+  const handleImageUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
 
-    try {
-      if (editingItem) {
-        await menuService.updateMenuItem(editingItem.id, itemData);
-        alert('✅ Item updated successfully!');
-      } else {
-        await menuService.addMenuItem(itemData);
-        alert('✅ Item added successfully!');
+    setUploading(true);
+    const storageRef = ref(storage, `menu_images/${Date.now()}_${file.name}`);
+    const uploadTask = uploadBytesResumable(storageRef, file);
+
+    uploadTask.on('state_changed', 
+      (snapshot) => {
+        const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+        console.log('Upload is ' + progress + '% done');
+      }, 
+      (error) => {
+        console.error("Upload Error:", error);
+        alert(`❌ Upload Failed: ${error.code}\n\nCheck your Firebase Storage Rules!`);
+        setUploading(false);
+      }, 
+      () => {
+        getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
+          setFormData(prev => ({ ...prev, image: downloadURL }));
+          alert("✅ Upload Successful!");
+          setUploading(false);
+        });
       }
-
-      setShowModal(false);
-      resetForm();
-      fetchMenuItems();
-      
-    } catch (error) {
-      console.error("Error saving item:", error);
-      alert('❌ Error saving item: ' + error.message);
-    }
+    );
   };
 
-  // Handle edit
   const handleEdit = (item) => {
     setEditingItem(item);
     setFormData({
@@ -176,584 +101,345 @@ const AdminPage = () => {
       price: item.price.toString(),
       category: item.category,
       isVegetarian: item.isVegetarian.toString(),
-      popular: item.popular?.toString() || 'false',
+      popular: (item.popular || false).toString(),
       image: item.image
     });
     setShowModal(true);
   };
 
-  // Handle delete
   const handleDelete = async (id) => {
-    if (window.confirm('Are you sure you want to delete this item?')) {
+    if (window.confirm('Delete this item? This cannot be undone.')) {
       try {
         await menuService.deleteMenuItem(id);
-        alert('✅ Item deleted successfully!');
-        fetchMenuItems();
+        fetchData();
       } catch (error) {
-        console.error("Error deleting item:", error);
-        alert('❌ Error deleting item: ' + error.message);
+        alert('Error deleting: ' + error.message);
       }
     }
   };
 
-  // Reset form
-  const resetForm = () => {
-    setEditingItem(null);
-    setFormData({
-      name: '',
-      description: '',
-      price: '',
-      category: 'pizza',
-      isVegetarian: 'false',
-      image: '',
-      popular: 'false'
-    });
-  };
-
-  // Handle form change
-  const handleChange = (e) => {
-    setFormData({
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    const itemData = {
       ...formData,
-      [e.target.name]: e.target.value
-    });
+      price: parseFloat(formData.price),
+      isVegetarian: formData.isVegetarian === 'true',
+      popular: formData.popular === 'true'
+    };
+
+    try {
+      if (editingItem) {
+        await menuService.updateMenuItem(editingItem.id, itemData);
+      } else {
+        await menuService.addMenuItem(itemData);
+      }
+      setShowModal(false);
+      fetchData();
+    } catch (error) {
+      alert('Error saving: ' + error.message);
+    }
   };
 
-  // Update order status
-  const updateOrderStatus = (orderId, newStatus) => {
-    const updatedOrders = orders.map(order => 
-      order.id === orderId ? { ...order, status: newStatus } : order
-    );
-    setOrders(updatedOrders);
-    alert(`Order ${orderId} status updated to ${newStatus}`);
-  };
-
-  // Get status badge color
-  const getStatusBadge = (status) => {
-    switch(status) {
-      case 'pending': return 'warning';
-      case 'preparing': return 'info';
-      case 'delivered': return 'success';
-      case 'cancelled': return 'danger';
-      default: return 'secondary';
+  const getStatusColor = (status) => {
+    switch(status?.toLowerCase()) {
+      case 'pending': return '#ff7a00';
+      case 'delivered': return '#10b981';
+      case 'cancelled': return '#ef4444';
+      default: return '#6366f1';
     }
   };
 
   return (
-    <Container className="py-4">
-      {/* Header */}
-      <Row className="mb-4 align-items-center">
-        <Col>
-          <h1 className="text-warning">
-            <FaCog className="me-2" />
-            Admin Dashboard
-          </h1>
-          <p className="text-muted">Manage your restaurant operations</p>
-        </Col>
-        <Col className="text-end">
-          <Button 
-            variant="outline-secondary" 
-            size="sm" 
-            onClick={() => window.location.reload()}
-            className="me-2"
-          >
-            <FaFilter /> Refresh
-          </Button>
-        </Col>
-      </Row>
-
-      {/* Stats Cards */}
-      <Row className="mb-4">
-        <Col md={3} sm={6} className="mb-3">
-          <Card className="border-0 shadow-sm h-100">
-            <Card.Body className="text-center">
-              <h2 className="text-warning">{stats.totalItems}</h2>
-              <p className="text-muted mb-0">Menu Items</p>
-            </Card.Body>
-          </Card>
-        </Col>
-        <Col md={3} sm={6} className="mb-3">
-          <Card className="border-0 shadow-sm h-100">
-            <Card.Body className="text-center">
-              <h2 className="text-warning">{stats.totalOrders}</h2>
-              <p className="text-muted mb-0">Total Orders</p>
-            </Card.Body>
-          </Card>
-        </Col>
-        <Col md={3} sm={6} className="mb-3">
-          <Card className="border-0 shadow-sm h-100">
-            <Card.Body className="text-center">
-              <h2 className="text-warning">${stats.totalRevenue.toFixed(2)}</h2>
-              <p className="text-muted mb-0">Total Revenue</p>
-            </Card.Body>
-          </Card>
-        </Col>
-        <Col md={3} sm={6} className="mb-3">
-          <Card className="border-0 shadow-sm h-100">
-            <Card.Body className="text-center">
-              <h2 className="text-warning">{stats.pendingOrders}</h2>
-              <p className="text-muted mb-0">Pending Orders</p>
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
-
-      {/* Tabs */}
-      <Tabs
-        activeKey={activeTab}
-        onSelect={(k) => setActiveTab(k)}
-        className="mb-4"
-        fill
-      >
-        <Tab eventKey="menu" title={
-          <>
-            <FaUtensils className="me-1" />
-            Menu Management
-          </>
-        }>
-          {/* Menu Management Section */}
-          <Card className="shadow border-0">
-            <Card.Body>
-              <div className="d-flex justify-content-between align-items-center mb-4">
-                <h5>Menu Items</h5>
-                <Button 
-                  variant="warning" 
-                  onClick={() => { resetForm(); setShowModal(true); }}
-                >
-                  <FaPlus className="me-1" /> Add New Item
-                </Button>
-              </div>
-
-              {loading.menu ? (
-                <div className="text-center py-5">
-                  <Spinner animation="border" variant="warning" />
-                  <p className="mt-2">Loading menu items...</p>
-                </div>
-              ) : menuItems.length === 0 ? (
-                <Alert variant="info" className="text-center">
-                  No menu items found. Add your first item!
-                </Alert>
-              ) : (
-                <div className="table-responsive">
-                  <Table hover>
-                    <thead className="table-light">
-                      <tr>
-                        <th>Image</th>
-                        <th>Name</th>
-                        <th>Category</th>
-                        <th>Price</th>
-                        <th>Status</th>
-                        <th>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {menuItems.map(item => (
-                        <tr key={item.id}>
-                          <td>
-                            <img 
-                              src={item.image} 
-                              alt={item.name}
-                              style={{ 
-                                width: '50px', 
-                                height: '50px', 
-                                objectFit: 'cover',
-                                borderRadius: '6px'
-                              }}
-                              onError={(e) => {
-                                e.target.src = 'https://via.placeholder.com/50x50?text=Image';
-                              }}
-                            />
-                          </td>
-                          <td>
-                            <div>
-                              <strong>{item.name}</strong>
-                              <div className="small text-muted">{item.description.substring(0, 50)}...</div>
-                            </div>
-                          </td>
-                          <td>
-                            <Badge bg="secondary">{item.category}</Badge>
-                            {item.popular && (
-                              <Badge bg="danger" className="ms-1">Popular</Badge>
-                            )}
-                          </td>
-                          <td>
-                            <strong>${item.price.toFixed(2)}</strong>
-                          </td>
-                          <td>
-                            {item.isVegetarian ? (
-                              <Badge bg="success">Vegetarian</Badge>
-                            ) : (
-                              <Badge bg="secondary">Non-Veg</Badge>
-                            )}
-                          </td>
-                          <td>
-                            <Button 
-                              variant="outline-primary" 
-                              size="sm" 
-                              className="me-2"
-                              onClick={() => handleEdit(item)}
-                              title="Edit"
-                            >
-                              <FaEdit />
-                            </Button>
-                            <Button 
-                              variant="outline-danger" 
-                              size="sm"
-                              onClick={() => handleDelete(item.id)}
-                              title="Delete"
-                            >
-                              <FaTrash />
-                            </Button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </Table>
-                </div>
-              )}
-            </Card.Body>
-          </Card>
-        </Tab>
-
-        <Tab eventKey="orders" title={
-          <>
-            <FaShoppingCart className="me-1" />
-            Orders Management
-          </>
-        }>
-          {/* Orders Management Section */}
-          <Card className="shadow border-0">
-            <Card.Body>
-              <div className="d-flex justify-content-between align-items-center mb-4">
-                <h5>Recent Orders</h5>
-                <Button variant="outline-secondary" size="sm">
-                  <FaFilter className="me-1" /> Filter
-                </Button>
-              </div>
-
-              {loading.orders ? (
-                <div className="text-center py-5">
-                  <Spinner animation="border" variant="warning" />
-                  <p className="mt-2">Loading orders...</p>
-                </div>
-              ) : orders.length === 0 ? (
-                <Alert variant="info" className="text-center">
-                  No orders found.
-                </Alert>
-              ) : (
-                <div className="table-responsive">
-                  <Table hover>
-                    <thead className="table-light">
-                      <tr>
-                        <th>Order ID</th>
-                        <th>Customer</th>
-                        <th>Items</th>
-                        <th>Total</th>
-                        <th>Status</th>
-                        <th>Date</th>
-                        <th>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {orders.map(order => (
-                        <tr key={order.id}>
-                          <td>
-                            <strong>{order.orderId}</strong>
-                          </td>
-                          <td>
-                            <div>
-                              <div>{order.customer}</div>
-                              <small className="text-muted">{order.email}</small>
-                            </div>
-                          </td>
-                          <td>
-                            <div className="small">
-                              {order.items.map((item, idx) => (
-                                <div key={idx}>• {item}</div>
-                              ))}
-                            </div>
-                          </td>
-                          <td>
-                            <strong>${order.total.toFixed(2)}</strong>
-                          </td>
-                          <td>
-                            <Badge bg={getStatusBadge(order.status)}>
-                              {order.status.toUpperCase()}
-                            </Badge>
-                          </td>
-                          <td>{order.date}</td>
-                          <td>
-                            <div className="d-flex flex-wrap gap-1">
-                              <Button 
-                                variant="outline-info" 
-                                size="sm"
-                                onClick={() => updateOrderStatus(order.id, 'preparing')}
-                                disabled={order.status !== 'pending'}
-                              >
-                                Prepare
-                              </Button>
-                              <Button 
-                                variant="outline-success" 
-                                size="sm"
-                                onClick={() => updateOrderStatus(order.id, 'delivered')}
-                                disabled={order.status === 'delivered'}
-                              >
-                                Deliver
-                              </Button>
-                              <Button 
-                                variant="outline-danger" 
-                                size="sm"
-                                onClick={() => updateOrderStatus(order.id, 'cancelled')}
-                              >
-                                Cancel
-                              </Button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </Table>
-                </div>
-              )}
-            </Card.Body>
-          </Card>
-        </Tab>
-
-        <Tab eventKey="analytics" title={
-          <>
-            <FaChartBar className="me-1" />
-            Analytics
-          </>
-        }>
-          {/* Analytics Section */}
-          <Card className="shadow border-0">
-            <Card.Body>
-              <h5 className="mb-4">Restaurant Analytics</h5>
-              
-              <Row>
-                <Col md={6}>
-                  <Card className="mb-3">
-                    <Card.Body>
-                      <h6>Category Distribution</h6>
-                      <div className="mt-3">
-                        {categories.map(category => {
-                          const count = menuItems.filter(item => item.category === category).length;
-                          const percentage = menuItems.length > 0 ? (count / menuItems.length * 100).toFixed(1) : 0;
-                          
-                          return (
-                            <div key={category} className="mb-2">
-                              <div className="d-flex justify-content-between">
-                                <span>{category.charAt(0).toUpperCase() + category.slice(1)}</span>
-                                <span>{count} items ({percentage}%)</span>
-                              </div>
-                              <div className="progress" style={{ height: '8px' }}>
-                                <div 
-                                  className="progress-bar bg-warning" 
-                                  role="progressbar" 
-                                  style={{ width: `${percentage}%` }}
-                                ></div>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </Card.Body>
-                  </Card>
-                </Col>
-                
-                <Col md={6}>
-                  <Card>
-                    <Card.Body>
-                      <h6>Quick Actions</h6>
-                      <div className="mt-3">
-                        <Button 
-                          variant="outline-warning" 
-                          className="w-100 mb-2"
-                          onClick={() => setActiveTab('menu')}
-                        >
-                          <FaPlus className="me-2" />
-                          Add New Menu Item
-                        </Button>
-                        
-                        <Button 
-                          variant="outline-info" 
-                          className="w-100 mb-2"
-                          onClick={fetchMenuItems}
-                        >
-                          <FaFilter className="me-2" />
-                          Refresh All Data
-                        </Button>
-                        
-                        <Button 
-                          variant="outline-success" 
-                          className="w-100"
-                          onClick={() => {
-                            // Export data functionality can be added here
-                            alert('Export feature coming soon!');
-                          }}
-                        >
-                          Export Data
-                        </Button>
-                      </div>
-                    </Card.Body>
-                  </Card>
-                </Col>
-              </Row>
-            </Card.Body>
-          </Card>
-        </Tab>
-      </Tabs>
-
-      {/* Add/Edit Modal */}
-      <Modal show={showModal} onHide={() => setShowModal(false)} size="lg">
-        <Modal.Header closeButton>
-          <Modal.Title>
-            {editingItem ? 'Edit Menu Item' : 'Add New Menu Item'}
-          </Modal.Title>
-        </Modal.Header>
+    <div className="admin-layout">
+      {/* ── Sidebar ────────────────────────────────────────── */}
+      <aside className="admin-sidebar d-none d-lg-flex">
+        <div className="mb-5 px-3">
+          <h3 className="fw-900 text-white mb-0">Food<span className="text-accent">Express</span></h3>
+          <p className="text-muted small">Admin Dashboard</p>
+        </div>
         
+        <nav className="flex-grow-1">
+          <div className={`admin-nav-item ${activeTab === 'overview' ? 'active' : ''}`} onClick={() => setActiveTab('overview')}>
+            <FaChartBar /> <span>Overview</span>
+          </div>
+          <div className={`admin-nav-item ${activeTab === 'orders' ? 'active' : ''}`} onClick={() => setActiveTab('orders')}>
+            <FaShoppingCart /> <span>Orders</span>
+          </div>
+          <div className={`admin-nav-item ${activeTab === 'menu' ? 'active' : ''}`} onClick={() => setActiveTab('menu')}>
+            <FaUtensils /> <span>Menu Management</span>
+          </div>
+        </nav>
+
+        <div className="admin-nav-item mt-auto" onClick={() => window.location.href = '/'}>
+           <span>Back to Site</span> <FaChevronRight size={12} />
+        </div>
+      </aside>
+
+      {/* ── Main Content ────────────────────────────────────── */}
+      <main className="admin-main">
+        <header className="mb-5 d-flex justify-content-between align-items-center">
+          <div>
+            <h1 className="fw-900 mb-1">
+              {activeTab === 'overview' && 'Dashboard Overview'}
+              {activeTab === 'orders' && 'Order Management'}
+              {activeTab === 'menu' && 'Menu Settings'}
+            </h1>
+            <p className="text-muted">Welcome back, Mishal</p>
+          </div>
+          <div className="d-flex gap-3">
+            {activeTab === 'menu' && (
+              <Button className="btn-accent px-4 py-2 rounded-3 fw-bold border-0" onClick={() => { setEditingItem(null); setShowModal(true); }}>
+                <FaPlus className="me-2" /> Add Item
+              </Button>
+            )}
+            <Button variant="outline-secondary" onClick={fetchData} className="rounded-3">Refresh</Button>
+          </div>
+        </header>
+
+        {loading ? (
+          <div className="text-center py-5">
+            <Spinner animation="border" variant="warning" />
+          </div>
+        ) : (
+          <>
+            {/* ── Overview Tab ────────────────────────────────── */}
+            {activeTab === 'overview' && (
+              <section className="animate-fade-in">
+                <Row className="gy-4 mb-5">
+                  <Col md={3}>
+                    <div className="stat-card-premium">
+                      <div className="stat-icon-box" style={{ background: 'rgba(255, 122, 0, 0.1)', color: '#ff7a00' }}>
+                        <FaDollarSign />
+                      </div>
+                      <h6 className="text-muted mb-1 fw-bold">Total Revenue</h6>
+                      <h3 className="fw-900 mb-0">${stats.totalRevenue.toFixed(2)}</h3>
+                    </div>
+                  </Col>
+                  <Col md={3}>
+                    <div className="stat-card-premium">
+                      <div className="stat-icon-box" style={{ background: 'rgba(99, 102, 241, 0.1)', color: '#6366f1' }}>
+                        <FaShoppingCart />
+                      </div>
+                      <h6 className="text-muted mb-1 fw-bold">Total Orders</h6>
+                      <h3 className="fw-900 mb-0">{stats.totalOrders}</h3>
+                    </div>
+                  </Col>
+                  <Col md={3}>
+                    <div className="stat-card-premium">
+                      <div className="stat-icon-box" style={{ background: 'rgba(16, 185, 129, 0.1)', color: '#10b981' }}>
+                        <FaUsers />
+                      </div>
+                      <h6 className="text-muted mb-1 fw-bold">Customers</h6>
+                      <h3 className="fw-900 mb-0">{stats.activeCustomers}</h3>
+                    </div>
+                  </Col>
+                  <Col md={3}>
+                    <div className="stat-card-premium">
+                      <div className="stat-icon-box" style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444' }}>
+                        <FaBox />
+                      </div>
+                      <h6 className="text-muted mb-1 fw-bold">Menu Items</h6>
+                      <h3 className="fw-900 mb-0">{stats.totalItems}</h3>
+                    </div>
+                  </Col>
+                </Row>
+
+                <Card className="table-premium border-0">
+                  <Card.Header className="bg-transparent p-4 border-0">
+                    <h5 className="fw-900 mb-0">Recent Activity</h5>
+                  </Card.Header>
+                  <div className="table-responsive">
+                    <Table className="mb-0 align-middle">
+                      <thead>
+                        <tr>
+                          <th>Order ID</th>
+                          <th>Customer</th>
+                          <th>Total</th>
+                          <th>Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {orders.slice(0, 5).map(o => (
+                          <tr key={o.id}>
+                            <td className="fw-800">{o.orderId}</td>
+                            <td>{o.customerInfo?.name || 'Guest'}</td>
+                            <td className="fw-900">${(o.total || 0).toFixed(2)}</td>
+                            <td>
+                              <span className="badge-status" style={{ background: `${getStatusColor(o.status)}20`, color: getStatusColor(o.status) }}>
+                                {o.status?.toUpperCase() || 'PENDING'}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </Table>
+                  </div>
+                </Card>
+              </section>
+            )}
+
+            {/* ── Orders Tab ──────────────────────────────────── */}
+            {activeTab === 'orders' && (
+              <section className="animate-fade-in">
+                <Card className="table-premium border-0">
+                  <div className="table-responsive">
+                    <Table className="mb-0">
+                      <thead>
+                        <tr>
+                          <th>ID</th>
+                          <th>Customer</th>
+                          <th>Items</th>
+                          <th>Amount</th>
+                          <th>Date</th>
+                          <th>Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {orders.map(o => (
+                          <tr key={o.id}>
+                            <td className="fw-800">{o.orderId}</td>
+                            <td>
+                              <div className="fw-bold">{o.customerInfo?.name}</div>
+                              <div className="text-muted small">{o.customerInfo?.phone}</div>
+                            </td>
+                            <td>
+                              {o.items?.map((it, i) => (
+                                <div key={i} className="small text-muted">• {it.name} (x{it.quantity})</div>
+                              ))}
+                            </td>
+                            <td className="fw-900">${(o.total || 0).toFixed(2)}</td>
+                            <td className="small">{new Date(o.orderDate).toLocaleDateString()}</td>
+                            <td>
+                               <span className="badge-status" style={{ background: `${getStatusColor(o.status)}20`, color: getStatusColor(o.status) }}>
+                                {o.status?.toUpperCase() || 'PENDING'}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </Table>
+                  </div>
+                </Card>
+              </section>
+            )}
+
+            {/* ── Menu Tab ────────────────────────────────────── */}
+            {activeTab === 'menu' && (
+              <section className="animate-fade-in">
+                <Row className="gy-4">
+                  {menuItems.map(item => (
+                    <Col md={6} xl={4} key={item.id}>
+                      <Card className="stat-card-premium h-100">
+                        <div className="d-flex gap-3">
+                          <img src={item.image} alt="" className="rounded-3" style={{ width: '80px', height: '80px', objectFit: 'cover' }} />
+                          <div className="flex-grow-1">
+                            <h6 className="fw-900 mb-1">{item.name}</h6>
+                            <p className="text-muted small mb-2">{item.category}</p>
+                            <div className="d-flex justify-content-between align-items-center">
+                              <span className="fw-900 text-accent">${item.price.toFixed(2)}</span>
+                              <div className="d-flex gap-2">
+                                <Button variant="none" className="p-2 text-muted hover-accent" onClick={() => handleEdit(item)}><FaEdit /></Button>
+                                <Button variant="none" className="p-2 text-muted hover-danger" onClick={() => handleDelete(item.id)}><FaTrash /></Button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </Card>
+                    </Col>
+                  ))}
+                </Row>
+              </section>
+            )}
+          </>
+        )}
+      </main>
+
+      {/* ── Management Modal ───────────────────────────────── */}
+      <Modal show={showModal} onHide={() => setShowModal(false)} centered contentClassName="border-0 rounded-4 shadow-lg dark-surface">
         <Form onSubmit={handleSubmit}>
-          <Modal.Body>
+          <Modal.Header closeButton className="border-0 p-4">
+            <Modal.Title className="fw-900">{editingItem ? 'Edit Dish' : 'Add New Dish'}</Modal.Title>
+          </Modal.Header>
+          <Modal.Body className="p-4 pt-0">
+            <Form.Group className="mb-3">
+              <Form.Label className="form-label-premium">Dish Name</Form.Label>
+              <Form.Control className="form-control-premium" type="text" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} required />
+            </Form.Group>
             <Row>
               <Col md={6}>
                 <Form.Group className="mb-3">
-                  <Form.Label>Name *</Form.Label>
-                  <Form.Control
-                    type="text"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleChange}
-                    required
-                    placeholder="e.g., Margherita Pizza"
-                  />
+                  <Form.Label className="form-label-premium">Price ($)</Form.Label>
+                  <Form.Control className="form-control-premium" type="number" step="0.01" value={formData.price} onChange={(e) => setFormData({...formData, price: e.target.value})} required />
                 </Form.Group>
               </Col>
-              
               <Col md={6}>
                 <Form.Group className="mb-3">
-                  <Form.Label>Category *</Form.Label>
-                  <Form.Select
-                    name="category"
-                    value={formData.category}
-                    onChange={handleChange}
-                    required
-                  >
-                    {categories.map(cat => (
-                      <option key={cat} value={cat}>
-                        {cat.charAt(0).toUpperCase() + cat.slice(1)}
-                      </option>
-                    ))}
+                  <Form.Label className="form-label-premium">Category</Form.Label>
+                  <Form.Select className="form-control-premium" value={formData.category} onChange={(e) => setFormData({...formData, category: e.target.value})}>
+                    <option value="pizza">Pizza</option>
+                    <option value="burger">Burger</option>
+                    <option value="salad">Salad</option>
+                    <option value="pasta">Pasta</option>
+                    <option value="indian">Indian</option>
+                    <option value="asian">Asian</option>
+                    <option value="dessert">Dessert</option>
+                    <option value="beverage">Beverage</option>
                   </Form.Select>
                 </Form.Group>
               </Col>
             </Row>
-
             <Form.Group className="mb-3">
-              <Form.Label>Description *</Form.Label>
-              <Form.Control
-                as="textarea"
-                rows={3}
-                name="description"
-                value={formData.description}
-                onChange={handleChange}
-                required
-                placeholder="Describe the item..."
-              />
-            </Form.Group>
-
-            <Row>
-              <Col md={4}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Price * ($)</Form.Label>
-                  <Form.Control
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    name="price"
-                    value={formData.price}
-                    onChange={handleChange}
-                    required
-                    placeholder="9.99"
+              <Form.Label className="form-label-premium">Dish Image</Form.Label>
+              <div className="d-flex flex-column gap-2">
+                <div className="upload-box-premium p-3 text-center border rounded-3 position-relative" style={{ background: 'rgba(0,0,0,0.02)', borderStyle: 'dashed !important' }}>
+                  <input 
+                    type="file" 
+                    accept="image/*" 
+                    onChange={handleImageUpload}
+                    style={{ opacity: 0, position: 'absolute', inset: 0, cursor: 'pointer' }}
+                    disabled={uploading}
                   />
-                </Form.Group>
-              </Col>
-              
-              <Col md={4}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Vegetarian</Form.Label>
-                  <Form.Select
-                    name="isVegetarian"
-                    value={formData.isVegetarian}
-                    onChange={handleChange}
-                  >
-                    <option value="false">No</option>
-                    <option value="true">Yes</option>
-                  </Form.Select>
-                </Form.Group>
-              </Col>
-              
-              <Col md={4}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Popular Item</Form.Label>
-                  <Form.Select
-                    name="popular"
-                    value={formData.popular}
-                    onChange={handleChange}
-                  >
-                    <option value="false">No</option>
-                    <option value="true">Yes</option>
-                  </Form.Select>
-                </Form.Group>
-              </Col>
-            </Row>
-
-            <Form.Group className="mb-3">
-              <Form.Label>Image URL *</Form.Label>
-              <Form.Control
-                type="url"
-                name="image"
-                value={formData.image}
-                onChange={handleChange}
-                required
-                placeholder="https://example.com/image.jpg"
-              />
-              <Form.Text className="text-muted">
-                Use high-quality food images from Unsplash
-              </Form.Text>
-            </Form.Group>
-            
-            {/* Image Preview */}
-            {formData.image && (
-              <div className="mt-3">
-                <h6>Image Preview:</h6>
-                <img 
-                  src={formData.image} 
-                  alt="Preview" 
-                  style={{ 
-                    width: '100%', 
-                    maxHeight: '200px', 
-                    objectFit: 'cover',
-                    borderRadius: '8px',
-                    border: '1px solid #ddd'
-                  }}
-                  onError={(e) => {
-                    e.target.src = 'https://via.placeholder.com/300x200?text=Invalid+Image+URL';
-                  }}
+                  {uploading ? (
+                    <div className="py-2">
+                      <Spinner animation="border" size="sm" variant="warning" className="me-2" />
+                      <span className="small fw-bold">Uploading...</span>
+                    </div>
+                  ) : (
+                    <div className="py-2 text-muted">
+                      <FaCloudUploadAlt size={24} className="mb-1 d-block mx-auto" />
+                      <span className="small fw-bold">Click to upload from PC</span>
+                    </div>
+                  )}
+                </div>
+                <div className="text-center text-muted small fw-bold">OR</div>
+                <Form.Control 
+                  className="form-control-premium" 
+                  type="url" 
+                  placeholder="Paste image URL here"
+                  value={formData.image} 
+                  onChange={(e) => setFormData({...formData, image: e.target.value})} 
+                  required 
                 />
               </div>
-            )}
+            </Form.Group>
+            <Form.Group className="mb-4">
+              <Form.Label className="form-label-premium">Description</Form.Label>
+              <Form.Control as="textarea" rows={3} className="form-control-premium" value={formData.description} onChange={(e) => setFormData({...formData, description: e.target.value})} required />
+            </Form.Group>
+            <div className="d-flex gap-3">
+              <Form.Check type="checkbox" label="Vegetarian" checked={formData.isVegetarian === 'true'} onChange={(e) => setFormData({...formData, isVegetarian: e.target.checked.toString()})} />
+              <Form.Check type="checkbox" label="Popular" checked={formData.popular === 'true'} onChange={(e) => setFormData({...formData, popular: e.target.checked.toString()})} />
+            </div>
           </Modal.Body>
-          
-          <Modal.Footer>
-            <Button variant="secondary" onClick={() => setShowModal(false)}>
-              <FaTimes className="me-1" /> Cancel
-            </Button>
-            <Button variant="warning" type="submit">
-              <FaSave className="me-1" /> {editingItem ? 'Update' : 'Save'} Item
+          <Modal.Footer className="border-0 p-4">
+            <Button variant="none" className="fw-bold text-muted" onClick={() => setShowModal(false)}>Cancel</Button>
+            <Button type="submit" className="btn-accent px-4 py-2 border-0 rounded-3 fw-bold">
+              {editingItem ? 'Update Dish' : 'Save Dish'}
             </Button>
           </Modal.Footer>
         </Form>
       </Modal>
-    </Container>
+    </div>
   );
 };
 

@@ -1,23 +1,28 @@
 import React from 'react';
-import { Button } from 'react-bootstrap';
+import { Button, Container } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
+import { FaArrowRight } from 'react-icons/fa';
 
 const Hero = () => {
   return (
-    <div className="hero-section text-center text-white py-5">
-      <div className="container py-5">
-        <h1 className="display-4 fw-bold mb-3">
-          Delicious Food Delivered to Your Door
-        </h1>
-        <p className="lead mb-4">
-          Order from the best restaurants in town. Fast delivery, fresh food, and great prices!
-        </p>
-        <Link to="/menu">
-          <Button variant="warning" size="lg" className="px-4 py-2 fw-bold">
-            Order Now
-          </Button>
-        </Link>
-      </div>
+    <div className="hero-section">
+      <Container>
+        <div className="hero-content">
+          <h1 className="hero-title animate-fade-in">
+            Delicious Food Delivered to Your Door
+          </h1>
+          <p className="hero-subtitle animate-fade-in-delay">
+            Order from the best restaurants in town. Fast delivery, fresh food, and great prices!
+          </p>
+          <div className="hero-actions animate-fade-in-delay-2">
+            <Link to="/menu">
+              <Button variant="warning" size="lg" className="hero-btn shadow-lg">
+                Order Now <FaArrowRight className="ms-2" size={16} />
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </Container>
     </div>
   );
 };

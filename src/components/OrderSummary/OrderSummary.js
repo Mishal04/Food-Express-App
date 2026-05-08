@@ -1,6 +1,7 @@
 import React from 'react';
 import { Card, Button, Alert } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
+import { FaLock, FaTruck, FaClock } from 'react-icons/fa';
 
 const OrderSummary = ({
     cartItems,
@@ -14,112 +15,110 @@ const OrderSummary = ({
     const cartCount = cartItems.reduce((total, item) => total + item.quantity, 0);
 
     return (
-        <Card className="shadow-sm sticky-top" style={{ top: '90px', zIndex: 1 }}>
-            <Card.Body>
-                <h4 className="mb-4">Order Summary</h4>
+        <Card className="summary-card-premium border-0 shadow-lg">
+            <Card.Body className="p-0">
+                <h4 className="fw-900 mb-4">Order Summary</h4>
 
-                <div className="mb-4">
+                <div className="summary-details mb-4">
                     {/* Items summary */}
-                    <div className="mb-3">
-                        <h6>Items ({cartCount})</h6>
+                    <div className="mb-3 scrollable-items pe-2" style={{ maxHeight: '180px', overflowY: 'auto' }}>
                         {cartItems.map(item => (
-                            <div key={item.id} className="d-flex justify-content-between mb-1">
-                                <span className="text-muted small">
-                                    {item.name} × {item.quantity}
+                            <div key={item.id} className="d-flex justify-content-between mb-2 animate-fade-in">
+                                <span className="text-secondary small fw-500">
+                                    {item.name} <span className="text-muted">× {item.quantity}</span>
                                 </span>
-                                <span className="small">
+                                <span className="small fw-800">
                                     ${(item.price * item.quantity).toFixed(2)}
                                 </span>
                             </div>
                         ))}
                     </div>
 
-                    <hr />
+                    <div className="divider-dashed my-3" />
 
                     {/* Subtotal */}
                     <div className="d-flex justify-content-between mb-2">
-                        <span>Subtotal</span>
-                        <span>${cartTotal.toFixed(2)}</span>
+                        <span className="text-secondary">Subtotal</span>
+                        <span className="fw-700">${cartTotal.toFixed(2)}</span>
                     </div>
 
                     {/* Delivery fee */}
-                    <div className="d-flex justify-content-between mb-2">
-                        <span>Delivery Fee</span>
-                        <span className={deliveryFee === 0 ? 'text-success' : ''}>
+                    <div className="d-flex justify-content-between mb-3">
+                        <span className="text-secondary">Delivery Fee</span>
+                        <span className={deliveryFee === 0 ? 'text-success fw-800' : 'fw-700'}>
                             {deliveryFee === 0 ? 'FREE' : `$${deliveryFee.toFixed(2)}`}
                         </span>
                     </div>
 
-                    <hr />
-
-                    {/* Total */}
-                    <div className="d-flex justify-content-between fw-bold fs-5">
-                        <span>Total</span>
-                        <span className="text-warning">${totalWithDelivery.toFixed(2)}</span>
+                    <div className="total-row p-3 rounded-4 bg-light-premium mb-4 dark-surface-2">
+                        <div className="d-flex justify-content-between align-items-center">
+                            <span className="fw-800 fs-5">Total</span>
+                            <span className="text-accent fw-900 fs-4">${totalWithDelivery.toFixed(2)}</span>
+                        </div>
                     </div>
                 </div>
 
-                {/* Free delivery message */}
-                {cartTotal > 30 ? (
-                    <Alert variant="success" className="mb-3">
-                        🎉 Congratulations! You qualify for FREE delivery!
-                    </Alert>
+                {/* Free delivery progress */}
+                {cartTotal < 30 ? (
+                    <div className="mb-4">
+                        <div className="d-flex justify-content-between small mb-1">
+                            <span className="text-muted">Free delivery progress</span>
+                            <span className="text-accent fw-bold">${(30 - cartTotal).toFixed(2)} to go</span>
+                        </div>
+                        <div className="progress rounded-pill" style={{ height: '6px' }}>
+                            <div 
+                                className="progress-bar bg-accent" 
+                                role="progressbar" 
+                                style={{ width: `${(cartTotal / 30) * 100}%` }}
+                                aria-valuenow={(cartTotal / 30) * 100} 
+                                aria-valuemin="0" 
+                                aria-valuemax="100"
+                            ></div>
+                        </div>
+                    </div>
                 ) : (
-                    <Alert variant="info" className="mb-3">
-                        <strong>Add ${(30 - cartTotal).toFixed(2)} more</strong> to get FREE delivery!
+                    <Alert variant="success" className="rounded-4 border-0 small mb-4 animate-fade-in">
+                        <FaTruck className="me-2" /> You've unlocked <strong>Free Delivery!</strong>
                     </Alert>
                 )}
 
-                {/* Buttons - Only shown if showCheckoutButton is true (Cart Page) */}
-                {showCheckoutButton ? (
-                    <>
+                {/* Buttons */}
+                {showCheckoutButton && (
+                    <div className="d-grid gap-3">
                         <Button
-                            variant="warning"
-                            className="w-100 py-3 fw-bold mb-3"
                             onClick={onCheckout}
-                            size="lg"
+                            className="checkout-btn-premium"
                         >
-                            {isLoggedIn ? 'Proceed to Checkout' : 'Login to Checkout'}
+                            {isLoggedIn ? 'Complete Order' : 'Login to Order'}
                         </Button>
 
                         {!isLoggedIn && (
-                            <Link to="/signup" className="text-decoration-none">
-                                <Button variant="outline-warning" className="w-100 py-2 mb-3">
+                            <Link to="/signup" className="text-decoration-none d-grid">
+                                <Button variant="none" className="login-btn-premium border-2 w-100">
                                     Create Free Account
                                 </Button>
                             </Link>
                         )}
-
-                        {/* Security info */}
-                        <div className="mt-4 pt-3 border-top">
-                            <div className="d-flex align-items-center mb-2">
-                                <span className="text-success me-2">✓</span>
-                                <small className="text-muted">Secure checkout</small>
-                            </div>
-                            <div className="d-flex align-items-center mb-2">
-                                <span className="text-success me-2">✓</span>
-                                <small className="text-muted">Free delivery over $30</small>
-                            </div>
-                            <div className="d-flex align-items-center">
-                                <span className="text-success me-2">✓</span>
-                                <small className="text-muted">30-minute delivery guarantee</small>
-                            </div>
-                        </div>
-
-                        {/* Terms */}
-                        <p className="text-muted small mt-3 mb-0">
-                            By placing your order, you agree to our
-                            <Link to="/terms" className="text-warning ms-1">Terms & Conditions</Link>
-                        </p>
-                    </>
-                ) : (
-                    /* Checkout Page view */
-                    <div className="text-muted small mt-3">
-                        <p>• Free delivery on orders over $30</p>
-                        <p>• Estimated delivery time: 30-45 minutes</p>
-                        <p>• Cash on delivery available</p>
                     </div>
                 )}
+
+                {/* Trust Badges */}
+                <div className="mt-4 pt-4 border-top">
+                    <div className="row g-2 text-center text-muted small">
+                        <div className="col-4">
+                            <FaLock className="d-block mx-auto mb-1 text-accent" />
+                            <span style={{ fontSize: '0.65rem' }}>Secure Pay</span>
+                        </div>
+                        <div className="col-4">
+                            <FaTruck className="d-block mx-auto mb-1 text-accent" />
+                            <span style={{ fontSize: '0.65rem' }}>Live Track</span>
+                        </div>
+                        <div className="col-4">
+                            <FaClock className="d-block mx-auto mb-1 text-accent" />
+                            <span style={{ fontSize: '0.65rem' }}>30m Delivery</span>
+                        </div>
+                    </div>
+                </div>
             </Card.Body>
         </Card>
     );

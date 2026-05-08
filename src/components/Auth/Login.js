@@ -1,190 +1,152 @@
-import React, { useState, useEffect } from 'react';
-import { Form, Button, Container, Card, Alert } from 'react-bootstrap';
+import React, { useState } from 'react';
+import { Form, Button, Container, Card, Alert, Row, Col } from 'react-bootstrap';
 import { Link, useNavigate } from 'react-router-dom';
 import { auth } from '../../firebase';
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { FaEnvelope, FaLock, FaArrowLeft, FaUtensils } from 'react-icons/fa';
 
 const Login = () => {
   const navigate = useNavigate();
-  
-  useEffect(() => {
-    console.log("✅ Login Component Loaded");
-    console.log("🔍 Auth object available:", !!auth);
-  }, []);
-  
-  const [formData, setFormData] = useState({
-    email: '',
-    password: ''
-  });
-  
+  const [formData, setFormData] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  
+
   const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
+    setFormData({ ...formData, [e.target.name]: e.target.value });
     setError('');
   };
-  
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    const { email, password } = formData;
-    
-    if (!email || !password) {
-      return setError('Please enter both email and password');
-    }
-    
     setLoading(true);
     setError('');
-    
+
     try {
-      console.log('🚀 Attempting login with:', email);
+      // Firebase v9 Modular SDK Login
+      const userCredential = await signInWithEmailAndPassword(auth, formData.email, formData.password);
+      const user = userCredential.user;
       
-      if (!auth || typeof auth.signInWithEmailAndPassword !== 'function') {
-        // Fallback to mock login
-        const mockUsers = JSON.parse(localStorage.getItem('mockUsers') || '[]');
-        const user = mockUsers.find(u => u.email === email);
-        
-        if (!user) {
-          throw new Error('User not found. Please sign up first.');
-        }
-        
-        const mockUser = {
-          email: email,
-          uid: user.uid || `mock_${Date.now()}`,
-          displayName: email.split('@')[0]
-        };
-        
-        localStorage.setItem('currentUser', JSON.stringify(mockUser));
-        
-        if (window.updateAuthState) {
-          window.updateAuthState(mockUser);
-        }
-        
-        navigate('/');
-        return;
-      }
+      // Save user info to local storage for persistence across the app's current logic
+      const userData = {
+        uid: user.uid,
+        email: user.email,
+        displayName: user.displayName || user.email.split('@')[0],
+        photoURL: user.photoURL
+      };
       
-      // Use Firebase auth
-      const result = await auth.signInWithEmailAndPassword(email, password);
-      
-      console.log('✅ Login successful:', result.user.email);
+      localStorage.setItem('foodexpress_current_user', JSON.stringify(userData));
       
       if (window.updateAuthState) {
-        window.updateAuthState(result.user);
+        window.updateAuthState(userData);
       }
       
       navigate('/');
-      
     } catch (err) {
-      console.error('❌ Login error:', err);
-      
-      let errorMessage = 'Login failed';
-      
-      if (err.message.includes('wrong-password') || err.message.includes('user-not-found')) {
-        errorMessage = 'Invalid email or password';
-      } else if (err.message.includes('too-many-requests')) {
-        errorMessage = 'Too many attempts. Try again later.';
-      } else {
-        errorMessage = err.message || 'Something went wrong';
+      console.error('Login error:', err);
+      let msg = 'Failed to sign in. Please check your credentials.';
+      if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
+        msg = 'Invalid email or password.';
+      } else if (err.code === 'auth/too-many-requests') {
+        msg = 'Too many attempts. Try again later.';
       }
-      
-      setError(errorMessage);
+      setError(msg);
     } finally {
       setLoading(false);
     }
   };
-  
+
   return (
-    <Container className="py-5">
-      <div className="row justify-content-center">
-        <div className="col-md-6 col-lg-5">
-          <Card className="shadow border-0">
-            <Card.Body className="p-4">
-              <h2 className="text-center mb-4 text-warning">Welcome Back</h2>
-              <p className="text-center text-muted mb-4">
-                Sign in to your FoodExpress account
-              </p>
-              
-              {error && (
-                <Alert variant="danger" className="text-center">
-                  <i className="fas fa-exclamation-circle me-2"></i>
-                  {error}
-                </Alert>
-              )}
-              
-              <Form onSubmit={handleSubmit}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Email Address</Form.Label>
-                  <Form.Control
-                    type="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleChange}
-                    placeholder="you@example.com"
-                    required
+    <div className="auth-page py-5 min-vh-100 d-flex align-items-center bg-light-premium">
+      <Container>
+        <Row className="justify-content-center">
+          <Col md={6} lg={5} className="animate-fade-in">
+            <div className="text-center mb-4">
+              <Link to="/" className="text-decoration-none text-accent fw-900 fs-2">
+                <FaUtensils className="me-2" />
+                FoodExpress
+              </Link>
+            </div>
+            
+            <Card className="checkout-card-premium border-0 shadow-lg">
+              <Card.Body className="p-4 p-md-5">
+                <div className="mb-4 text-center">
+                  <h2 className="fw-900 mb-1">Welcome Back</h2>
+                  <p className="text-muted small">Sign in to continue your delicious journey</p>
+                </div>
+
+                {error && <Alert variant="danger" className="rounded-4 border-0 mb-4 py-3 small">{error}</Alert>}
+
+                <Form onSubmit={handleSubmit}>
+                  <Form.Group className="mb-4">
+                    <Form.Label className="form-label-premium">Email Address</Form.Label>
+                    <div className="position-relative">
+                      <FaEnvelope className="position-absolute translate-middle-y top-50 ms-3 text-muted" />
+                      <Form.Control
+                        className="form-control-premium ps-5"
+                        type="email"
+                        name="email"
+                        placeholder="name@example.com"
+                        value={formData.email}
+                        onChange={handleChange}
+                        required
+                        disabled={loading}
+                      />
+                    </div>
+                  </Form.Group>
+
+                  <Form.Group className="mb-4">
+                    <div className="d-flex justify-content-between">
+                      <Form.Label className="form-label-premium">Password</Form.Label>
+                      <Link to="#" className="text-accent small text-decoration-none fw-bold">Forgot?</Link>
+                    </div>
+                    <div className="position-relative">
+                      <FaLock className="position-absolute translate-middle-y top-50 ms-3 text-muted" />
+                      <Form.Control
+                        className="form-control-premium ps-5"
+                        type="password"
+                        name="password"
+                        placeholder="••••••••"
+                        value={formData.password}
+                        onChange={handleChange}
+                        required
+                        disabled={loading}
+                      />
+                    </div>
+                  </Form.Group>
+
+                  <Button
+                    type="submit"
+                    className="checkout-btn-premium w-100 py-3 mt-2"
                     disabled={loading}
-                    className="py-2"
-                  />
-                </Form.Group>
-                
-                <Form.Group className="mb-4">
-                  <Form.Label>Password</Form.Label>
-                  <Form.Control
-                    type="password"
-                    name="password"
-                    value={formData.password}
-                    onChange={handleChange}
-                    placeholder="Enter your password"
-                    required
-                    disabled={loading}
-                    className="py-2"
-                  />
-                  <div className="text-end mt-2">
-                    <Link to="/" className="text-warning small text-decoration-none">
-                      Forgot password?
+                  >
+                    {loading ? (
+                      <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                    ) : (
+                      'Sign In'
+                    )}
+                  </Button>
+                </Form>
+
+                <div className="text-center mt-4 pt-3 border-top">
+                  <p className="mb-0 text-muted small">
+                    Don't have an account?{' '}
+                    <Link to="/signup" className="text-accent fw-bold text-decoration-none">
+                      Join now
                     </Link>
-                  </div>
-                </Form.Group>
-                
-                <Button
-                  type="submit"
-                  variant="warning"
-                  className="w-100 py-3 mb-3 fw-bold"
-                  disabled={loading}
-                >
-                  {loading ? (
-                    <>
-                      <span className="spinner-border spinner-border-sm me-2" role="status"></span>
-                      Signing In...
-                    </>
-                  ) : (
-                    'Sign In'
-                  )}
-                </Button>
-              </Form>
-              
-              <div className="text-center mt-4 pt-3 border-top">
-                <p className="mb-0">
-                  Don't have an account?{' '}
-                  <Link to="/signup" className="text-warning fw-bold text-decoration-none">
-                    Create one now
-                  </Link>
-                </p>
-              </div>
-              
-              <div className="mt-4 p-3 bg-light rounded border">
-                <p className="mb-0 small text-muted">
-                  <strong>💡 Development Mode:</strong> Use any email and password (6+ characters)
-                </p>
-              </div>
-            </Card.Body>
-          </Card>
-        </div>
-      </div>
-    </Container>
+                  </p>
+                </div>
+              </Card.Body>
+            </Card>
+
+            <div className="text-center mt-4">
+              <Link to="/" className="text-decoration-none text-muted small hover-accent">
+                <FaArrowLeft className="me-2" /> Back to Home
+              </Link>
+            </div>
+          </Col>
+        </Row>
+      </Container>
+    </div>
   );
 };
 

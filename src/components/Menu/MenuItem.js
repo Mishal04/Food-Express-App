@@ -1,83 +1,89 @@
-import React from 'react';
-import { Card, Button, Badge } from 'react-bootstrap';
-import { FaStar, FaFire } from 'react-icons/fa';
+import React, { useState } from 'react';
 import { useCart } from '../../context/CartContext';
+import { FaStar, FaFire, FaLeaf, FaPlus, FaCheck } from 'react-icons/fa';
 
-const MenuItem = ({ item }) => {
+const MenuItem = ({ item, index = 0 }) => {
   const { addToCart } = useCart();
+  const [added, setAdded] = useState(false);
+  const [imgError, setImgError] = useState(false);
 
   const handleAddToCart = () => {
-    console.log(`🛒 Adding ${item.name} to cart - $${item.price}`);
+    if (added) return;
     addToCart(item);
+    setAdded(true);
+    setTimeout(() => setAdded(false), 1800);
   };
 
+  const fallbackSrc =
+    'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?ixlib=rb-1.2.1&auto=format&fit=crop&w=600&q=80';
+
   return (
-    <Card className="h-100 shadow-sm border-0">
-      <div className="position-relative">
-        <Card.Img 
-          variant="top" 
-          src={item.image}
-          style={{ 
-            height: '200px', 
-            objectFit: 'cover',
-            transition: 'transform 0.5s ease'
-          }}
+    <div
+      className="food-card"
+      style={{ animationDelay: `${index * 80}ms` }}
+    >
+      {/* Image Container */}
+      <div className="food-card__img-wrap">
+        <img
+          className="food-card__img"
+          src={imgError ? fallbackSrc : item.image}
           alt={item.name}
-          className="card-img"
-          onError={(e) => {
-            e.target.onerror = null;
-            e.target.src = "https://images.unsplash.com/photo-1555939594-58d7cb561ad1?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&q=80";
-          }}
+          onError={() => setImgError(true)}
+          loading="lazy"
         />
-        
+
+        {/* Overlay gradient */}
+        <div className="food-card__img-overlay" />
+
         {/* Badges */}
-        <div className="position-absolute top-0 end-0 m-2 d-flex flex-column gap-1">
-          {item.isVegetarian && (
-            <Badge bg="success" className="px-2 py-1">
-              🥬 Veg
-            </Badge>
-          )}
+        <div className="food-card__badges">
           {item.popular && (
-            <Badge bg="danger" className="px-2 py-1">
-              <FaFire className="me-1" /> Popular
-            </Badge>
+            <span className="food-badge food-badge--hot">
+              <FaFire size={10} /> Hot
+            </span>
+          )}
+          {item.isVegetarian && (
+            <span className="food-badge food-badge--veg">
+              <FaLeaf size={10} /> Veg
+            </span>
           )}
         </div>
-        
-        {/* Price Tag */}
-        <div className="position-absolute bottom-0 start-0 m-2">
-          <Badge bg="dark" className="px-3 py-2 fs-6">
-            ${item.price.toFixed(2)}
-          </Badge>
+
+        {/* Price */}
+        <div className="food-card__price">
+          ${item.price.toFixed(2)}
         </div>
       </div>
-      
-      <Card.Body className="d-flex flex-column p-3">
-        <Card.Title className="d-flex justify-content-between align-items-start mb-2">
-          <span className="fw-bold" style={{ fontSize: '1.1rem' }}>
-            {item.name}
-          </span>
-          {item.popular && (
-            <FaStar className="text-warning" size={16} />
-          )}
-        </Card.Title>
-        
-        <Card.Text className="text-muted flex-grow-1 mb-3" style={{ fontSize: '0.9rem' }}>
-          {item.description}
-        </Card.Text>
-        
-        <div className="mt-auto">
-          <Button 
-            variant="warning" 
-            className="w-100 fw-bold py-2"
-            onClick={handleAddToCart}
-            size="sm"
-          >
-            Add to Cart
-          </Button>
+
+      {/* Body */}
+      <div className="food-card__body">
+        <div className="food-card__title-row">
+          <h3 className="food-card__name">{item.name}</h3>
+          {item.popular && <FaStar className="food-card__star" size={14} />}
         </div>
-      </Card.Body>
-    </Card>
+
+        <p className="food-card__desc">{item.description}</p>
+
+        <button
+          className={`food-card__btn ${added ? 'food-card__btn--added' : ''}`}
+          onClick={handleAddToCart}
+          disabled={added}
+          aria-label={`Add ${item.name} to cart`}
+        >
+          {added ? (
+            <>
+              <FaCheck size={13} />
+              <span>Added!</span>
+            </>
+          ) : (
+            <>
+              <FaPlus size={13} />
+              <span>Add to Cart</span>
+            </>
+          )}
+        </button>
+      </div>
+    </div>
   );
 };
 

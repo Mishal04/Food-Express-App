@@ -16,6 +16,9 @@ import CartNotification from './components/CartNotification/CartNotification';
 
 import Signup from './components/Auth/Signup';
 import { CartProvider } from './context/CartContext';
+import { auth } from './firebase';
+import { onAuthStateChanged } from 'firebase/auth';
+import ScrollToTop from './components/ScrollToTop';
 
 function App() {
   const [user, setUser] = useState(null);
@@ -43,65 +46,59 @@ function App() {
     };
   }, []);
 
+  const [darkMode, setDarkMode] = useState(() => {
+    return localStorage.getItem('foodexpress_dark_mode') === 'true';
+  });
+
+  // Toggle Dark Mode
+  const toggleDarkMode = () => {
+    setDarkMode(prev => {
+      const newVal = !prev;
+      localStorage.setItem('foodexpress_dark_mode', newVal);
+      return newVal;
+    });
+  };
+
   useEffect(() => {
-    console.log("App: Setting up auth listener...");
+    if (darkMode) {
+      document.body.classList.add('dark-mode');
+    } else {
+      document.body.classList.remove('dark-mode');
+    }
+  }, [darkMode]);
 
-    // First check localStorage for user
-    const checkUser = () => {
-      try {
-        const savedUser = localStorage.getItem('foodexpress_current_user') ||
-          localStorage.getItem('currentUser') ||
-          localStorage.getItem('mockUser');
-
-        if (savedUser) {
-          const parsedUser = JSON.parse(savedUser);
-          setUser(parsedUser);
-          console.log("App: Loaded user from localStorage:", parsedUser.email);
-        } else {
-          setUser(null);
-        }
-      } catch (error) {
-        console.error("App: Error parsing saved user:", error);
+  useEffect(() => {
+    console.log("App: Setting up Firebase auth listener...");
+    
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      if (firebaseUser) {
+        // User is signed in
+        const userData = {
+          uid: firebaseUser.uid,
+          email: firebaseUser.email,
+          displayName: firebaseUser.displayName || firebaseUser.email.split('@')[0],
+          photoURL: firebaseUser.photoURL
+        };
+        setUser(userData);
+        localStorage.setItem('foodexpress_current_user', JSON.stringify(userData));
+        console.log("App: User logged in:", userData.email);
+      } else {
+        // User is signed out
         setUser(null);
+        localStorage.removeItem('foodexpress_current_user');
+        console.log("App: User logged out");
       }
-
       setLoading(false);
-    };
+    });
 
-    checkUser();
+    // Fallback loading finish
+    const timeoutId = setTimeout(() => setLoading(false), 3000);
 
-    // Listen for storage changes (for mock auth)
-    const handleStorageChange = (e) => {
-      if (e.key === 'foodexpress_current_user' ||
-        e.key === 'currentUser' ||
-        e.key === 'mockUser') {
-        checkUser();
-      }
-    };
-
-    window.addEventListener('storage', handleStorageChange);
-
-    // Set a global function for mock auth to update state
-    window.updateAuthState = (newUser) => {
-      setUser(newUser);
-    };
-
-    // Set timeout to ensure loading finishes
-    const timeoutId = setTimeout(() => {
-      if (loading) {
-        console.log("App: Loading timeout reached");
-        setLoading(false);
-      }
-    }, 2000);
-
-    // Cleanup
     return () => {
-      window.removeEventListener('storage', handleStorageChange);
+      unsubscribe();
       clearTimeout(timeoutId);
-      delete window.updateAuthState;
-      delete window.showCartNotification;
     };
-  }, [loading]);
+  }, []);
 
   if (loading) {
     return (
@@ -118,8 +115,9 @@ function App() {
   return (
     <CartProvider>
       <Router>
+        <ScrollToTop />
         <div className="d-flex flex-column min-vh-100">
-          <NavigationBar user={user} />
+          <NavigationBar user={user} darkMode={darkMode} toggleDarkMode={toggleDarkMode} />
 
           {/* Cart Notification */}
           <CartNotification

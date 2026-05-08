@@ -1,33 +1,24 @@
-// Firebase Configuration with Firestore
+// Firebase Configuration with Firestore and Storage
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
+import { getStorage } from "firebase/storage";
 
-// YOUR ACTUAL FIREBASE CONFIG (replace with yours)
 const firebaseConfig = {
-  apiKey: "AIzaSyCZyPhAEF0gsms7XcOpn_UDQ7r0A66-JUU",
-  authDomain: "food-express-701ea.firebaseapp.com",
-  projectId: "food-express-701ea",
-  storageBucket: "food-express-701ea.firebasestorage.app",
-  messagingSenderId: "592190737702",
-  appId: "1:592190737702:web:6973affa19859a2cf905e7"
+  apiKey: "AIzaSyCjm78WDdJY8HC-gDx3ArU1hEJZBr26K6M",
+  authDomain: "food-express-1c38b.firebaseapp.com",
+  projectId: "food-express-1c38b",
+  storageBucket: "food-express-1c38b.appspot.com",
+  messagingSenderId: "284377385170",
+  appId: "1:284377385170:web:768a70cb57225d3c1cc50b"
 };
-
-// Check if using mock or real Firebase
-const isUsingRealFirebase = firebaseConfig.apiKey !== "YOUR_API_KEY";
-
-if (!isUsingRealFirebase) {
-  console.warn("⚠️ Using Mock Firebase. For real data, update firebaseConfig with your actual Firebase credentials.");
-}
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
-// Initialize Firebase services
-const auth = getAuth(app);
-const db = getFirestore(app);
+// Initialize and Export Firebase services directly
+export const auth = getAuth(app);
+export const db = getFirestore(app);
+export const storage = getStorage(app);
 
-console.log(`✅ Firebase ${isUsingRealFirebase ? 'Real' : 'Mock'} Initialized`);
-
-export { auth, db };
 export default app;

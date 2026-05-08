@@ -1,338 +1,451 @@
-import React, { useState, useEffect } from 'react';
-import { Container, Row, Col, Spinner, Alert } from 'react-bootstrap';
+import React, { useState, useEffect, useCallback } from 'react';
 import MenuItem from '../components/Menu/MenuItem';
+import { FiSearch, FiShoppingCart } from 'react-icons/fi';
+import { 
+  FaUtensils, 
+  FaPizzaSlice, 
+  FaHamburger, 
+  FaLeaf, 
+  FaIceCream, 
+  FaCoffee,
+  FaShoppingCart,
+  FaFire
+} from 'react-icons/fa';
+import { 
+  GiNoodles, 
+  GiBowlOfRice, 
+  GiChopsticks 
+} from 'react-icons/gi';
+import { useCart } from '../context/CartContext';
+import { useNavigate } from 'react-router-dom';
 
-// COMPLETE MENU ITEMS - 20 Delicious Food Items
+// ─── Data ──────────────────────────────────────────────────────────────────
+
 const sampleMenuItems = [
   // 🍕 PIZZAS
   {
-    id: 1,
-    name: "Margherita Pizza",
-    description: "Classic pizza with fresh tomato sauce, mozzarella, and basil leaves",
+    id: '1',
+    name: 'Margherita Pizza',
+    description: 'Classic pizza with fresh tomato sauce, mozzarella, and basil leaves',
     price: 12.99,
-    image: "https://images.unsplash.com/photo-1604068549290-dea0e4a305ca?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&q=80",
-    category: "pizza",
+    image: 'https://images.unsplash.com/photo-1574071318508-1cdbab80d002?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=90',
+    category: 'pizza',
     isVegetarian: true,
-    popular: true
+    popular: true,
   },
   {
-    id: 2,
-    name: "Pepperoni Pizza",
-    description: "Spicy pepperoni with extra cheese on thin crust",
+    id: '2',
+    name: 'Pepperoni Pizza',
+    description: 'Spicy pepperoni with extra cheese on a crisp thin crust',
     price: 14.99,
-    image: "https://images.unsplash.com/photo-1628840042765-356cda07504e?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&q=80",
-    category: "pizza",
+    image: 'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=90',
+    category: 'pizza',
     isVegetarian: false,
-    popular: true
+    popular: true,
   },
   {
-    id: 3,
-    name: "BBQ Chicken Pizza",
-    description: "Grilled chicken with BBQ sauce, onions, and cilantro",
+    id: '3',
+    name: 'BBQ Chicken Pizza',
+    description: 'Grilled chicken with smoky BBQ sauce, red onions, and fresh cilantro',
     price: 16.99,
-    image: "https://images.unsplash.com/photo-1593246049226-ded77bf90326?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&q=80",
-    category: "pizza",
-    isVegetarian: false
+    image: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=90',
+    category: 'pizza',
+    isVegetarian: false,
   },
-  
   // 🍔 BURGERS
   {
-    id: 4,
-    name: "Classic Cheeseburger",
-    description: "Juicy beef patty with cheese, lettuce, tomato, and special sauce",
+    id: '4',
+    name: 'Classic Cheeseburger',
+    description: 'Juicy beef patty with aged cheddar, lettuce, tomato, and special sauce',
     price: 9.99,
-    image: "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&q=80",
-    category: "burger",
+    image: 'https://images.unsplash.com/photo-1561758033-d89a9ad46330?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=90',
+    category: 'burger',
     isVegetarian: false,
-    popular: true
+    popular: true,
   },
   {
-    id: 5,
-    name: "Veggie Burger",
-    description: "Plant-based patty with avocado, lettuce, and vegan mayo",
+    id: '5',
+    name: 'Veggie Burger',
+    description: 'Plant-based patty with creamy avocado, lettuce, and vegan mayo',
     price: 8.99,
-    image: "https://images.unsplash.com/photo-1596662951482-0c4ba74a6df6?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&q=80",
-    category: "burger",
-    isVegetarian: true
+    image: 'https://images.unsplash.com/photo-1550547660-d9450f859349?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=90',
+    category: 'burger',
+    isVegetarian: true,
   },
   {
-    id: 6,
-    name: "Double Bacon Burger",
-    description: "Double beef patty with crispy bacon and cheddar cheese",
+    id: '6',
+    name: 'Double Bacon Burger',
+    description: 'Double beef patty stacked with crispy bacon and melted cheddar',
     price: 13.99,
-    image: "https://images.unsplash.com/photo-1553979459-d2229ba7433w?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&q=80",
-    category: "burger",
-    isVegetarian: false
+    image: 'https://images.unsplash.com/photo-1586816001966-79b736744398?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=90',
+    category: 'burger',
+    isVegetarian: false,
   },
-  
   // 🥗 SALADS
   {
-    id: 7,
-    name: "Caesar Salad",
-    description: "Fresh romaine lettuce with Caesar dressing, croutons, and parmesan",
+    id: '7',
+    name: 'Caesar Salad',
+    description: 'Crisp romaine with Caesar dressing, house croutons, and parmesan',
     price: 8.99,
-    image: "https://images.unsplash.com/photo-1546793665-c74683f339c1?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&q=80",
-    category: "salad",
-    isVegetarian: true
+    image: 'https://images.unsplash.com/photo-1550304943-4f24f54ddde9?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=90',
+    category: 'salad',
+    isVegetarian: true,
   },
   {
-    id: 8,
-    name: "Greek Salad",
-    description: "Cucumber, tomatoes, olives, feta cheese with olive oil dressing",
+    id: '8',
+    name: 'Greek Salad',
+    description: 'Cucumber, tomatoes, kalamata olives, and feta with olive oil dressing',
     price: 9.99,
-    image: "https://images.unsplash.com/photo-1540420773420-3366772f4999?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&q=80",
-    category: "salad",
-    isVegetarian: true
+    image: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=90',
+    category: 'salad',
+    isVegetarian: true,
   },
-  
   // 🍝 PASTA
   {
-    id: 9,
-    name: "Pasta Carbonara",
-    description: "Spaghetti with creamy egg sauce, pancetta, and black pepper",
+    id: '9',
+    name: 'Pasta Carbonara',
+    description: 'Silky spaghetti with egg sauce, guanciale, pecorino, and black pepper',
     price: 14.99,
-    image: "https://images.unsplash.com/photo-1598866594230-a7c12756260f?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&q=80",
-    category: "pasta",
-    isVegetarian: false
+    image: 'https://images.unsplash.com/photo-1555949258-eb67b1ef0ceb?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=90',
+    category: 'pasta',
+    isVegetarian: false,
   },
   {
-    id: 10,
-    name: "Vegetable Pasta",
-    description: "Penne pasta with mixed vegetables in tomato basil sauce",
+    id: '10',
+    name: 'Vegetable Pasta',
+    description: 'Penne with garden vegetables in a fragrant tomato-basil sauce',
     price: 12.99,
-    image: "https://images.unsplash.com/photo-1551183053-bf91a1d81141?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&q=80",
-    category: "pasta",
-    isVegetarian: true
+    image: 'https://images.unsplash.com/photo-1563379926898-05f4575a45d8?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=90',
+    category: 'pasta',
+    isVegetarian: true,
   },
-  
   // 🍛 INDIAN
   {
-    id: 11,
-    name: "Chicken Tikka Masala",
-    description: "Grilled chicken in creamy tomato sauce with basmati rice",
+    id: '11',
+    name: 'Chicken Tikka Masala',
+    description: 'Tandoor-grilled chicken in velvety tomato cream sauce with basmati rice',
     price: 16.99,
-    image: "https://images.unsplash.com/photo-1565557623262-b51c2513a641?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&q=80",
-    category: "indian",
+    image: 'https://images.unsplash.com/photo-1603894584373-5ac82b2ae398?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=90',
+    category: 'indian',
     isVegetarian: false,
-    popular: true
+    popular: true,
   },
   {
-    id: 12,
-    name: "Paneer Butter Masala",
-    description: "Cottage cheese cubes in rich buttery tomato gravy",
+    id: '12',
+    name: 'Paneer Butter Masala',
+    description: 'Cottage cheese cubes simmered in a rich, buttery tomato gravy',
     price: 14.99,
-    image: "https://images.unsplash.com/photo-1631452180519-c014fe946bc7?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&q=80",
-    category: "indian",
-    isVegetarian: true
+    image: 'https://images.unsplash.com/photo-1565557623262-b51c2513a641?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=90',
+    category: 'indian',
+    isVegetarian: true,
   },
-  
   // 🥢 ASIAN
   {
-    id: 13,
-    name: "Vegetable Stir Fry",
-    description: "Assorted vegetables stir-fried in soy-ginger sauce",
+    id: '13',
+    name: 'Vegetable Stir Fry',
+    description: 'Wok-tossed seasonal vegetables in a savory soy-ginger glaze',
     price: 11.99,
-    image: "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&q=80",
-    category: "asian",
-    isVegetarian: true
+    image: 'https://images.unsplash.com/photo-1512058564366-18510be2db19?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=90',
+    category: 'asian',
+    isVegetarian: true,
   },
   {
-    id: 14,
-    name: "Chicken Fried Rice",
-    description: "Fried rice with chicken, eggs, and mixed vegetables",
+    id: '14',
+    name: 'Chicken Fried Rice',
+    description: 'Wok-fried jasmine rice with chicken, eggs, and spring onions',
     price: 13.99,
-    image: "https://images.unsplash.com/photo-1603133872878-684f208fb84b?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&q=80",
-    category: "asian",
-    isVegetarian: false
+    image: 'https://images.unsplash.com/photo-1516684732162-798a0062be99?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=90',
+    category: 'asian',
+    isVegetarian: false,
   },
-  
   // 🍰 DESSERTS
   {
-    id: 15,
-    name: "Chocolate Brownie",
-    description: "Warm chocolate brownie with vanilla ice cream",
+    id: '15',
+    name: 'Chocolate Brownie',
+    description: 'Warm, fudgy chocolate brownie served with vanilla bean ice cream',
     price: 6.99,
-    image: "https://images.unsplash.com/photo-1564355808539-22fda35bed7e?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&q=80",
-    category: "dessert",
+    image: 'https://images.unsplash.com/photo-1606313564200-e75d5e30476c?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=90',
+    category: 'dessert',
     isVegetarian: true,
-    popular: true
+    popular: true,
   },
   {
-    id: 16,
-    name: "Cheesecake",
-    description: "New York style cheesecake with berry compote",
+    id: '16',
+    name: 'Cheesecake',
+    description: 'Creamy New York-style cheesecake with a fresh mixed-berry compote',
     price: 7.99,
-    image: "https://images.unsplash.com/photo-1563805042-7684c019e1cb?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&q=80",
-    category: "dessert",
-    isVegetarian: true
+    image: 'https://images.unsplash.com/photo-1533134242443-d4fd215305ad?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=90',
+    category: 'dessert',
+    isVegetarian: true,
   },
-  
   // 🥤 BEVERAGES
   {
-    id: 17,
-    name: "Fresh Orange Juice",
-    description: "Freshly squeezed orange juice",
+    id: '17',
+    name: 'Fresh Orange Juice',
+    description: 'Cold-pressed oranges — 100% pure, no added sugar',
     price: 3.99,
-    image: "https://images.unsplash.com/photo-1621506289937-a8e4df240d0b?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&q=80",
-    category: "beverage",
-    isVegetarian: true
+    image: 'https://images.unsplash.com/photo-1600271886742-f049cd451bba?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=90',
+    category: 'beverage',
+    isVegetarian: true,
   },
   {
-    id: 18,
-    name: "Mango Lassi",
-    description: "Refreshing yogurt-based mango drink",
+    id: '18',
+    name: 'Mango Lassi',
+    description: 'Thick, chilled yogurt drink blended with ripe Alphonso mangoes',
     price: 4.99,
-    image: "https://images.unsplash.com/photo-1571575173700-afb9492e6a50?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&q=80",
-    category: "beverage",
-    isVegetarian: true
+    image: 'https://images.unsplash.com/photo-1527661591475-527312dd65f5?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=90',
+    category: 'beverage',
+    isVegetarian: true,
   },
   {
-    id: 19,
-    name: "Iced Coffee",
-    description: "Cold brewed coffee with milk and ice",
+    id: '19',
+    name: 'Iced Coffee',
+    description: 'Slow-brewed cold coffee with oat milk over crushed ice',
     price: 4.49,
-    image: "https://images.unsplash.com/photo-1461023058943-07fcbe16d735?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&q=80",
-    category: "beverage",
-    isVegetarian: true
+    image: 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=90',
+    category: 'beverage',
+    isVegetarian: true,
   },
   {
-    id: 20,
-    name: "Fresh Lemonade",
-    description: "Homemade lemonade with mint leaves",
+    id: '20',
+    name: 'Fresh Lemonade',
+    description: 'Hand-squeezed lemonade with fresh mint and a hint of honey',
     price: 3.49,
-    image: "https://images.unsplash.com/photo-1621506289938-729a6b36b96f?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&q=80",
-    category: "beverage",
-    isVegetarian: true
-  }
+    image: 'https://images.unsplash.com/photo-1496715976403-3e37f53e7eda?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=90',
+    category: 'beverage',
+    isVegetarian: true,
+  },
 ];
 
+const CATEGORIES = [
+  { id: 'all',      label: 'All',       icon: <FaUtensils /> },
+  { id: 'pizza',    label: 'Pizza',     icon: <FaPizzaSlice /> },
+  { id: 'burger',   label: 'Burger',    icon: <FaHamburger /> },
+  { id: 'salad',    label: 'Salad',     icon: <FaLeaf /> },
+  { id: 'pasta',    label: 'Pasta',     icon: <GiNoodles /> },
+  { id: 'indian',   label: 'Indian',    icon: <GiBowlOfRice /> },
+  { id: 'asian',    label: 'Asian',     icon: <GiChopsticks /> },
+  { id: 'dessert',  label: 'Dessert',   icon: <FaIceCream /> },
+  { id: 'beverage', label: 'Drinks',    icon: <FaCoffee /> },
+];
+
+// ─── Skeleton Card ───────────────────────────────────────────────────────────
+
+const SkeletonCard = () => (
+  <div className="skeleton-card">
+    <div className="skeleton skeleton--img" />
+    <div className="skeleton-card__body">
+      <div className="skeleton skeleton--title" />
+      <div className="skeleton skeleton--text" />
+      <div className="skeleton skeleton--text skeleton--text-short" />
+      <div className="skeleton skeleton--btn" />
+    </div>
+  </div>
+);
+
+
+// ─── MenuPage ────────────────────────────────────────────────────────────────
+
 const MenuPage = () => {
-  const [menuItems] = useState(sampleMenuItems);
-  const [categories] = useState([
-    "All", 
-    "pizza", 
-    "burger", 
-    "salad", 
-    "pasta", 
-    "indian", 
-    "asian", 
-    "dessert", 
-    "beverage"
-  ]);
-  const [activeCategory, setActiveCategory] = useState("All");
-  const [loading] = useState(false);
-  const [error] = useState('');
+  const [activeCategory, setActiveCategory] = useState('all');
+  const [search, setSearch] = useState('');
+  const [loading, setLoading] = useState(true);
+  const { cartCount } = useCart();
+  const navigate = useNavigate();
 
-  const filteredItems = activeCategory === "All" 
-    ? menuItems 
-    : menuItems.filter(item => item.category === activeCategory);
+  // Simulate a brief load
+  useEffect(() => {
+    const t = setTimeout(() => setLoading(false), 900);
+    return () => clearTimeout(t);
+  }, []);
 
-  if (loading) {
-    return (
-      <Container className="py-5 text-center">
-        <Spinner animation="border" role="status" variant="warning">
-          <span className="visually-hidden">Loading...</span>
-        </Spinner>
-        <p className="mt-3">Loading delicious menu...</p>
-      </Container>
-    );
-  }
 
-  if (error) {
-    return (
-      <Container className="py-5">
-        <Alert variant="danger">{error}</Alert>
-      </Container>
-    );
-  }
+  const filteredItems = sampleMenuItems.filter((item) => {
+    const matchCat = activeCategory === 'all' || item.category === activeCategory;
+    const matchSearch = item.name.toLowerCase().includes(search.toLowerCase());
+    return matchCat && matchSearch;
+  });
+
+  const popularItems = sampleMenuItems.filter((i) => i.popular);
+
+  const handleCategoryChange = useCallback((id) => {
+    setActiveCategory(id);
+    setSearch('');
+  }, []);
 
   return (
-    <Container className="py-5">
-      <h1 className="text-center mb-2">Our Delicious Menu</h1>
-      <p className="text-center text-muted mb-5">
-        Choose from our wide selection of mouth-watering dishes
-      </p>
-      
-      {/* Category Filters */}
-      <div className="d-flex flex-wrap justify-content-center gap-2 mb-5">
-        {categories.map(category => (
-          <button
-            key={category}
-            className={`btn ${activeCategory === category ? 'btn-warning' : 'btn-outline-warning'}`}
-            onClick={() => setActiveCategory(category)}
-          >
-            {category.charAt(0).toUpperCase() + category.slice(1)}
-            {category === "All" && ` (${menuItems.length})`}
-          </button>
-        ))}
-      </div>
-      
-      {/* Popular Items Section */}
-      {activeCategory === "All" && (
-        <div className="mb-5">
-          <h3 className="mb-4 text-warning">🔥 Most Popular</h3>
-          <Row xs={1} md={2} lg={4} className="g-4 mb-5">
-            {menuItems
-              .filter(item => item.popular)
-              .map(item => (
-                <Col key={item.id}>
-                  <MenuItem item={item} />
-                </Col>
-              ))}
-          </Row>
+    <div className="menu-page">
+
+      {/* ── Hero Banner ────────────────────────────────────── */}
+      <section className="menu-hero">
+        <div className="menu-hero__bg" />
+        <div className="menu-hero__content">
+          <p className="menu-hero__eyebrow">FoodExpress Kitchen</p>
+          <h1 className="menu-hero__title">
+            One bite and <span className="menu-hero__accent">you're cooked</span>
+          </h1>
+          <p className="menu-hero__sub">
+            {sampleMenuItems.length} dishes crafted with love — delivered to your door.
+          </p>
+
+          {/* Search bar */}
+          <div className="menu-search">
+            <FiSearch className="menu-search__icon" />
+            <input
+              id="menu-search-input"
+              className="menu-search__input"
+              type="text"
+              placeholder="Search dishes…"
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setActiveCategory('all');
+              }}
+              aria-label="Search menu items"
+            />
+            {search && (
+              <button
+                className="menu-search__clear"
+                onClick={() => setSearch('')}
+                aria-label="Clear search"
+              >
+                ✕
+              </button>
+            )}
+          </div>
         </div>
-      )}
-      
-      {/* All Items Section */}
-      <h3 className="mb-4">
-        {activeCategory === "All" ? "All Items" : activeCategory.charAt(0).toUpperCase() + activeCategory.slice(1)}
-        <span className="text-muted ms-2 small">
-          ({filteredItems.length} items)
-        </span>
-      </h3>
-      
-      {filteredItems.length === 0 ? (
-        <Alert variant="info" className="text-center">
-          No items found in this category
-        </Alert>
-      ) : (
-        <Row xs={1} md={2} lg={3} xl={4} className="g-4">
-          {filteredItems.map(item => (
-            <Col key={item.id}>
-              <MenuItem item={item} />
-            </Col>
+
+        {/* Cart FAB */}
+        <button
+          id="cart-fab"
+          className="cart-fab"
+          onClick={() => navigate('/cart')}
+          aria-label="Go to cart"
+        >
+          <FiShoppingCart size={20} />
+          {cartCount > 0 && (
+            <span className="cart-fab__badge">{cartCount}</span>
+          )}
+        </button>
+      </section>
+
+      {/* ── Category Pills ─────────────────────────────────── */}
+      <section className="menu-categories" aria-label="Menu categories">
+        <div className="menu-categories__track">
+          {CATEGORIES.map((cat) => (
+            <button
+              key={cat.id}
+              id={`cat-${cat.id}`}
+              className={`cat-pill ${activeCategory === cat.id ? 'cat-pill--active' : ''}`}
+              onClick={() => handleCategoryChange(cat.id)}
+              aria-pressed={activeCategory === cat.id}
+            >
+              <span className="cat-pill__emoji">{cat.icon}</span>
+              {cat.label}
+              {cat.id === 'all' && (
+                <span className="cat-pill__count">{sampleMenuItems.length}</span>
+              )}
+            </button>
           ))}
-        </Row>
-      )}
-      
-      {/* Menu Stats */}
-      <div className="mt-5 pt-4 border-top text-center">
-        <Row>
-          <Col md={4}>
-            <div className="p-3">
-              <h4 className="text-warning">{menuItems.length}</h4>
-              <p className="text-muted mb-0">Total Items</p>
+        </div>
+      </section>
+
+      <div className="menu-page__body">
+
+        {/* ── Popular Section (only on "All" tab, no search) ─ */}
+        {activeCategory === 'all' && !search && (
+          <section className="menu-section">
+            <div className="menu-section__header">
+              <h2 className="menu-section__title">
+                <FaFire className="text-accent me-2" /> <span>Most Popular</span>
+              </h2>
+              <p className="menu-section__sub">Fan-favourite dishes loved by thousands</p>
             </div>
-          </Col>
-          <Col md={4}>
-            <div className="p-3">
-              <h4 className="text-warning">
-                {menuItems.filter(item => item.isVegetarian).length}
-              </h4>
-              <p className="text-muted mb-0">Vegetarian Options</p>
+
+            {loading ? (
+              <div className="menu-grid menu-grid--popular">
+                {Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)}
+              </div>
+            ) : (
+              <div className="menu-grid menu-grid--popular">
+                {popularItems.map((item, i) => (
+                  <MenuItem key={item.id} item={item} index={i} />
+                ))}
+              </div>
+            )}
+          </section>
+        )}
+
+        {/* ── Main Grid ──────────────────────────────────────── */}
+        <section className="menu-section">
+          <div className="menu-section__header">
+            <h2 className="menu-section__title">
+              {search
+                ? `Results for "${search}"`
+                : activeCategory === 'all'
+                ? 'Full Menu'
+                : `${CATEGORIES.find(c => c.id === activeCategory)?.label}`}
+            </h2>
+            {!loading && (
+              <p className="menu-section__sub">
+                {filteredItems.length} {filteredItems.length === 1 ? 'item' : 'items'}
+              </p>
+            )}
+          </div>
+
+          {loading ? (
+            <div className="menu-grid">
+              {Array.from({ length: 8 }).map((_, i) => <SkeletonCard key={i} />)}
             </div>
-          </Col>
-          <Col md={4}>
-            <div className="p-3">
-              <h4 className="text-warning">
-                ${Math.min(...menuItems.map(item => item.price)).toFixed(2)}
-              </h4>
-              <p className="text-muted mb-0">Starting From</p>
+          ) : filteredItems.length === 0 ? (
+            <div className="menu-empty">
+              <div className="menu-empty__icon"><FaUtensils /></div>
+              <h3>No dishes found</h3>
+              <p>Try a different category or search term</p>
+              <button
+                className="menu-empty__reset"
+                onClick={() => { setSearch(''); setActiveCategory('all'); }}
+              >
+                Clear filters
+              </button>
             </div>
-          </Col>
-        </Row>
+          ) : (
+            <div className="menu-grid">
+              {filteredItems.map((item, i) => (
+                <MenuItem key={item.id} item={item} index={i} />
+              ))}
+            </div>
+          )}
+        </section>
+
+        {/* ── Stats Bar ────────────────────────────────────────── */}
+        <section className="menu-stats">
+          <div className="menu-stat">
+            <span className="menu-stat__num">{sampleMenuItems.length}</span>
+            <span className="menu-stat__label">Total Dishes</span>
+          </div>
+          <div className="menu-stat__divider" />
+          <div className="menu-stat">
+            <span className="menu-stat__num">
+              {sampleMenuItems.filter((i) => i.isVegetarian).length}
+            </span>
+            <span className="menu-stat__label">Vegetarian</span>
+          </div>
+          <div className="menu-stat__divider" />
+          <div className="menu-stat">
+            <span className="menu-stat__num">
+              ${Math.min(...sampleMenuItems.map((i) => i.price)).toFixed(2)}
+            </span>
+            <span className="menu-stat__label">Starting From</span>
+          </div>
+          <div className="menu-stat__divider" />
+          <div className="menu-stat">
+            <span className="menu-stat__num">30</span>
+            <span className="menu-stat__label">Min Delivery</span>
+          </div>
+        </section>
       </div>
-    </Container>
+    </div>
   );
 };
 
